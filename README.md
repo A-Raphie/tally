@@ -47,7 +47,7 @@ Gas: claim STT at https://testnet.somnia.network/. Collateral: tUSDC self-mints 
 | Claim | Status |
 |---|---|
 | Live order placement on DreamDEX testnet | Proven. Three fills: spike `0x623efd7af6101cd28c80cc787ee444087301bf63256d6609cec61f49c6ac0d80`, app receipts `0x82b7ca65b7fc7d57f34db72ecf917edd9ba6a1f86bdab2467c4ee7b2919e551f` and `0xf39b045717f2f3adfff27276fd83f10b4b42c454f2fdf48c1a309d9abf5ba156`. |
-| Settlement against chain resolution | Proven on a loss (receipt `0x82b7ca65...` resolved LOST, payout 0, after the market finalized). A WIN case follows the same code path via `winningOutcome === 0`; not yet observed live at time of writing. |
+| Settlement against chain resolution | Proven both ways. Receipt `0x82b7ca65...` resolved LOST (payout 0) and receipt `0xf39b0457...` resolved WON (payout 2.00 tUSDC: 2 contracts staked at 0.57, returned 2.00), each after its market finalized on the indexer. |
 | Receipt per fill with explorer link | Proven in the running app. |
 | Board ranked by settled truth | Working; aggregates the receipts above. |
 | Multi-wallet support | Single agent wallet in this build. The board is wallet-keyed and ready for more. |
