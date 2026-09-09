@@ -168,9 +168,9 @@ export default function Home() {
           >
             <span className="flex items-center gap-2">
               <span
-                className={`inline-block h-1.5 w-1.5 rounded-full ${conn === "up" ? "bg-[var(--win)]" : "bg-[var(--text-3)]"}`}
+                className={`inline-block h-1.5 w-1.5 rounded-full ${conn === "up" ? "bg-[var(--prophecy)]" : "bg-[var(--text-3)]"}`}
               />
-              <span className={conn === "up" ? "text-[var(--win)]" : "text-[var(--text-2)]"}>
+              <span className={conn === "up" ? "text-[var(--prophecy)]" : "text-[var(--text-2)]"}>
                 {conn === "up" ? "Connected" : "Reconnecting"}
               </span>
             </span>
@@ -262,7 +262,7 @@ export default function Home() {
               <button
                 onClick={settle}
                 disabled={settling || openCount === 0}
-                className="mt-5 h-11 w-full border border-[var(--line-2)] text-xs font-bold uppercase tracking-[0.18em] transition-colors duration-150 hover:bg-[var(--surface-2)] disabled:opacity-40"
+                className="mt-5 h-11 w-full rounded-lg border border-[var(--line-2)] text-xs font-bold uppercase tracking-[0.18em] transition-colors duration-150 hover:bg-[var(--surface-2)] disabled:opacity-40"
               >
                 {settling ? "Checking the chain…" : `Settle ${openCount} open`}
               </button>
@@ -342,7 +342,7 @@ export default function Home() {
                       onClick={() => bet(m)}
                       disabled={betting !== null}
                       aria-label={`Stake 1 tUSDC on YES: ${m.question}`}
-                      className="h-11 shrink-0 border border-[var(--line-2)] bg-[var(--text)] px-4 text-xs font-bold uppercase tracking-[0.14em] text-[var(--bg)] transition-all duration-150 hover:bg-[var(--text-2)] active:scale-[0.96] disabled:opacity-40"
+                      className="h-11 shrink-0 rounded-lg bg-[var(--accent)] px-4 text-xs font-bold uppercase tracking-[0.14em] text-white transition-all duration-150 hover:bg-[var(--accent-hover)] active:scale-[0.96] disabled:opacity-40"
                     >
                       {betting === m.marketId ? "Staking…" : "Stake 1 · YES"}
                     </button>

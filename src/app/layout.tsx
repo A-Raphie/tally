@@ -1,5 +1,12 @@
 import type { Metadata, Viewport } from "next";
+import { Source_Code_Pro } from "next/font/google";
 import "./globals.css";
+
+const scp = Source_Code_Pro({
+  variable: "--font-scp",
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://tally-dreamdex.vercel.app"),
@@ -21,13 +28,13 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0b0d0e",
+  themeColor: "#070707",
   colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className={`h-full antialiased ${scp.variable}`}>
       <body className="min-h-full">{children}</body>
     </html>
   );

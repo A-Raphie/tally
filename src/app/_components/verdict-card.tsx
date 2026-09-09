@@ -16,10 +16,17 @@ export type CardReceipt = {
 };
 
 export const CHIP: Record<CardReceipt["status"], string> = {
-  OPEN: "text-[var(--open)]",
-  WON: "text-[var(--win)]",
-  LOST: "text-[var(--loss)]",
-  VOID: "text-[var(--void)]",
+  OPEN: "chip-open",
+  WON: "chip-won",
+  LOST: "chip-loss",
+  VOID: "chip-void",
+};
+
+export const CARD_BORDER: Record<CardReceipt["status"], string> = {
+  OPEN: "border-l-[var(--line-2)]",
+  WON: "border-l-[var(--win)]",
+  LOST: "border-l-[var(--loss-deep)]",
+  VOID: "border-l-[var(--void)]",
 };
 
 export function clock(ts: number): string {
@@ -35,13 +42,15 @@ export function short(a: string, head = 8, tail = 4): string {
 export function VerdictCard({ r, big = false }: { r: CardReceipt; big?: boolean }) {
   const staked = r.filled * r.price;
   return (
-    <article className={`enter border border-[var(--line)] bg-[var(--surface)] ${big ? "p-5" : "p-4"}`}>
+    <article
+      className={`enter rounded-lg border border-[var(--line)] border-l-[3px] bg-[var(--surface)] ${CARD_BORDER[r.status]} ${big ? "p-5" : "p-4"}`}
+    >
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[10px] uppercase tracking-[0.2em] text-[var(--text-3)]">
         <span>RCPT {r.id.slice(2, 14).toUpperCase()}</span>
         <span className={`chip ${CHIP[r.status]}`}>{r.status}</span>
         <span>{clock(r.placedAt)}</span>
       </div>
-      <h3 className={`mt-2.5 font-bold leading-snug text-balance ${big ? "text-base" : "text-sm"}`}>
+      <h3 className={`mt-2.5 font-semibold leading-snug text-balance ${big ? "text-base" : "text-sm"}`}>
         {r.question || r.symbol}
       </h3>
       <dl className="mt-3 space-y-1.5 text-xs">
@@ -58,7 +67,7 @@ export function VerdictCard({ r, big = false }: { r: CardReceipt; big?: boolean 
         {r.payout !== null && (
           <div className="flex justify-between border-t border-[var(--line)] pt-1.5">
             <dt className="text-[var(--text-2)]">returned</dt>
-            <dd className={r.status === "WON" ? "text-[var(--win)]" : r.status === "LOST" ? "text-[var(--loss)]" : ""}>
+            <dd className={r.status === "WON" ? "font-semibold text-[var(--win)]" : r.status === "LOST" ? "text-[var(--loss)]" : ""}>
               {r.payout.toFixed(2)} tUSDC
             </dd>
           </div>

@@ -38,56 +38,58 @@ export default async function Landing() {
             Desk →
           </Link>
         </div>
-        <h1 className="mt-10 max-w-[20ch] text-5xl font-bold leading-[1.05] tracking-tight text-balance sm:text-6xl">
-          Every prediction call leaves a receipt.
+        <h1 className="mt-10 max-w-[20ch] text-5xl font-bold leading-[1.08] tracking-[-0.02em] text-balance sm:text-6xl">
+          Every prediction call leaves a <span className="text-[var(--accent)]">receipt</span>.
         </h1>
-        <p className="mt-6 max-w-[62ch] text-sm leading-relaxed text-[var(--text-2)] text-pretty">
-          Tally is a settlement instrument for DreamDEX Event Contracts. The desk stakes 1 tUSDC
-          YES on live markets. Every fill prints a verdict card carrying its real transaction.
-          When the market finalizes onchain, the card flips to WON or LOST with the payout math
-          attached. The desk never marks its own homework.
-        </p>
-        <div className="mt-8 flex flex-wrap items-center gap-4">
-          <Link
-            href="/desk"
-            className="h-12 border border-[var(--line-2)] bg-[var(--text)] px-6 text-xs font-bold uppercase tracking-[0.18em] leading-[3rem] text-[var(--bg)] transition-all duration-150 hover:bg-[var(--text-2)] active:scale-[0.98]"
-          >
-            Enter the desk
-          </Link>
-          <a
-            href="#mechanism"
-            className="text-xs uppercase tracking-[0.18em] text-[var(--text-2)] underline decoration-dotted underline-offset-4 transition-colors duration-150 hover:text-[var(--text)]"
-          >
-            Read the mechanics
-          </a>
+        <div className="mt-8 grid items-start gap-10 lg:grid-cols-[1fr_400px]">
+          <div>
+            <p className="max-w-[56ch] text-sm leading-relaxed text-[var(--text-2)] text-pretty">
+              Tally is a settlement instrument for DreamDEX Event Contracts. The desk stakes 1
+              tUSDC YES on live markets. Every fill prints a verdict card carrying its real
+              transaction. When the market finalizes onchain, the card flips to WON or LOST with
+              the payout math attached. The desk never marks its own homework.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-4">
+              <Link
+                href="/desk"
+                className="h-12 rounded-lg bg-[var(--accent)] px-6 text-xs font-bold uppercase tracking-[0.18em] leading-[3rem] text-white transition-all duration-150 hover:bg-[var(--accent-hover)] active:scale-[0.98]"
+              >
+                Enter the desk
+              </Link>
+              <a
+                href="#mechanism"
+                className="text-xs uppercase tracking-[0.18em] text-[var(--text-2)] underline decoration-dotted underline-offset-4 transition-colors duration-150 hover:text-[var(--text)]"
+              >
+                Read the mechanics
+              </a>
+            </div>
+            <p className="mt-6 text-xs tabular-nums text-[var(--text-2)]">
+              live on this deployment: {receipts.length} cards printed · {won}W {lost}L settled ·{" "}
+              {returned.toFixed(2)} tUSDC returned · {open} open
+            </p>
+          </div>
+          <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-4">
+            <div className="flex items-baseline justify-between">
+              <h2 className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--text-3)]">
+                Latest verdict cards
+              </h2>
+              <span className="text-[10px] text-[var(--text-3)]">live</span>
+            </div>
+            {proof.length === 0 ? (
+              <div className="mt-4 rounded-lg border border-dashed border-[var(--line)] px-4 py-8 text-center text-sm text-[var(--text-2)]">
+                No cards yet. The desk prints the first one on its next stake; this panel renders
+                it live.
+              </div>
+            ) : (
+              <div className="mt-4 space-y-4">
+                {proof.map((r) => (
+                  <VerdictCard key={r.id} r={r} />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-        <p className="mt-6 text-xs tabular-nums text-[var(--text-2)]">
-          live on this deployment: {receipts.length} cards printed · {won}W {lost}L settled ·{" "}
-          {returned.toFixed(2)} tUSDC returned · {open} open
-        </p>
       </header>
-
-      {/* ── hero visual: the live cards, not screenshots ─────────────── */}
-      <section className="mt-10 border border-[var(--line)] bg-[var(--surface)] p-5">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--text-3)]">
-            Latest verdict cards
-          </h2>
-          <span className="text-[10px] text-[var(--text-3)]">rendered live from the desk log</span>
-        </div>
-        {proof.length === 0 ? (
-          <div className="mt-4 border border-dashed border-[var(--line)] px-4 py-8 text-center text-sm text-[var(--text-2)]">
-            No cards yet. The desk prints the first one on its next stake; this panel renders it
-            live.
-          </div>
-        ) : (
-          <div className="mt-4 grid gap-5 sm:grid-cols-2">
-            {proof.map((r) => (
-              <VerdictCard key={r.id} r={r} big />
-            ))}
-          </div>
-        )}
-      </section>
 
       {/* ── problem ──────────────────────────────────────────────────── */}
       <Section n="01" label="The problem">
@@ -119,8 +121,8 @@ export default async function Landing() {
 
       {/* ── thesis moment ────────────────────────────────────────────── */}
       <section className="mt-20 border-y border-[var(--line)] py-14 text-center">
-        <p className="text-3xl font-bold leading-tight tracking-tight text-balance sm:text-4xl">
-          Trust the receipt,
+        <p className="text-3xl font-bold leading-tight tracking-[-0.02em] text-balance sm:text-4xl">
+          Trust the <span className="text-[var(--accent)]">receipt</span>,
           <br />
           not the storyteller.
         </p>
@@ -227,7 +229,7 @@ export default async function Landing() {
         <p className="text-lg text-balance">The desk is live on Somnia Shannon testnet.</p>
         <Link
           href="/desk"
-          className="mt-5 inline-block h-12 border border-[var(--line-2)] bg-[var(--text)] px-6 text-xs font-bold uppercase tracking-[0.18em] leading-[3rem] text-[var(--bg)] transition-all duration-150 hover:bg-[var(--text-2)] active:scale-[0.98]"
+          className="mt-5 inline-block h-12 rounded-lg bg-[var(--accent)] px-6 text-xs font-bold uppercase tracking-[0.18em] leading-[3rem] text-white transition-all duration-150 hover:bg-[var(--accent-hover)] active:scale-[0.98]"
         >
           Enter the desk
         </Link>
