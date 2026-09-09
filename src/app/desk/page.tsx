@@ -63,7 +63,15 @@ export default function Home() {
   const [flash, setFlash] = useState<{ tx: string } | null>(null);
   const [conn, setConn] = useState<Conn>("up");
   const [now, setNow] = useState(() => Date.now());
+  const [hydrated, setHydrated] = useState(false);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // pre-hydration clicks are silently dead: keep every control visibly
+  // disabled until React is live
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setHydrated(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   // the desk ticks locally between polls; nothing freezes for 15s
   useEffect(() => {
@@ -298,7 +306,7 @@ export default function Home() {
               </dl>
               <button
                 onClick={settle}
-                disabled={settling || openCount === 0}
+                disabled={!hydrated || settling || openCount === 0}
                 className="font-data mt-5 h-11 w-full rounded-full border border-[var(--line-2)] text-xs font-semibold transition-colors duration-150 hover:bg-[var(--surface-2)] disabled:opacity-40"
               >
                 {settling ? "Checking the chain…" : `Settle ${openCount} open`}
@@ -378,21 +386,21 @@ export default function Home() {
                     <div className="flex shrink-0 items-center gap-2">
                       <button
                         onClick={() => bet(m, "YES")}
-                        disabled={betting !== null || m.ask === null}
+                        disabled={!hydrated || betting !== null || m.ask === null}
                         title={m.ask === null ? "No ask on the book yet: nothing to cross" : undefined}
                         aria-label={`Stake 1 tUSDC on YES: ${m.question}`}
                         className="font-data h-10 rounded-full bg-[var(--accent)] px-5 text-xs font-semibold text-white transition-all duration-150 hover:bg-[var(--accent-hover)] active:scale-[0.96] disabled:opacity-40"
                       >
-                        {betting === m.marketId + "YES" ? "Staking…" : "YES"}
+                        {!hydrated ? "…" : betting === m.marketId + "YES" ? "Staking…" : "YES"}
                       </button>
                       <button
                         onClick={() => bet(m, "NO")}
-                        disabled={betting !== null || m.ask === null}
+                        disabled={!hydrated || betting !== null || m.ask === null}
                         title={m.ask === null ? "No ask on the book yet: nothing to cross" : "Stake 1 tUSDC on NO"}
                         aria-label={`Stake 1 tUSDC on NO: ${m.question}`}
                         className="font-data h-10 rounded-full border border-[var(--line-2)] px-5 text-xs font-semibold text-[var(--text)] transition-all duration-150 hover:bg-[var(--surface-2)] active:scale-[0.96] disabled:opacity-40"
                       >
-                        {betting === m.marketId + "NO" ? "Staking…" : "NO"}
+                        {!hydrated ? "…" : betting === m.marketId + "NO" ? "Staking…" : "NO"}
                       </button>
                     </div>
                   </li>
