@@ -43,9 +43,9 @@ export function VerdictCard({ r, big = false }: { r: CardReceipt; big?: boolean 
   const staked = r.filled * r.price;
   return (
     <article
-      className={`enter rounded-lg border border-[var(--line)] border-l-[3px] bg-[var(--surface)] ${CARD_BORDER[r.status]} ${big ? "p-5" : "p-4"}`}
+      className={`enter card border-l-[3px] ${CARD_BORDER[r.status]} ${big ? "p-5" : "p-4"}`}
     >
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[10px] uppercase tracking-[0.2em] text-[var(--text-3)]">
+      <div className="font-data flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] text-[var(--text-3)]">
         <span>RCPT {r.id.slice(2, 14).toUpperCase()}</span>
         <span className={`chip ${CHIP[r.status]}`}>{r.status}</span>
         <span>{clock(r.placedAt)}</span>
@@ -53,20 +53,20 @@ export function VerdictCard({ r, big = false }: { r: CardReceipt; big?: boolean 
       <h3 className={`mt-2.5 font-semibold leading-snug text-balance ${big ? "text-base" : "text-sm"}`}>
         {r.question || r.symbol}
       </h3>
-      <dl className="mt-3 space-y-1.5 text-xs">
-        <div className="flex justify-between border-t border-[var(--line)] pt-1.5">
-          <dt className="text-[var(--text-2)]">entry</dt>
+      <dl className="font-data mt-3 space-y-1.5 text-xs">
+        <div className="flex justify-between pt-1.5">
+          <dt className="text-[var(--text-2)]">Entry</dt>
           <dd>
             {r.filled} YES @ {r.price.toFixed(3)}
           </dd>
         </div>
-        <div className="flex justify-between border-t border-[var(--line)] pt-1.5">
-          <dt className="text-[var(--text-2)]">staked</dt>
+        <div className="flex justify-between pt-1.5">
+          <dt className="text-[var(--text-2)]">Staked</dt>
           <dd>{staked.toFixed(2)} tUSDC</dd>
         </div>
         {r.payout !== null && (
-          <div className="flex justify-between border-t border-[var(--line)] pt-1.5">
-            <dt className="text-[var(--text-2)]">returned</dt>
+          <div className="flex justify-between pt-1.5">
+            <dt className="text-[var(--text-2)]">Returned</dt>
             <dd className={r.status === "WON" ? "font-semibold text-[var(--win)]" : r.status === "LOST" ? "text-[var(--loss)]" : ""}>
               {r.payout.toFixed(2)} tUSDC
             </dd>
@@ -74,11 +74,11 @@ export function VerdictCard({ r, big = false }: { r: CardReceipt; big?: boolean 
         )}
       </dl>
       <details className="group mt-3 border-t border-[var(--line)] pt-2">
-        <summary className="cursor-pointer list-none text-[10px] uppercase tracking-[0.2em] text-[var(--text-3)] transition-colors duration-150 hover:text-[var(--text)]">
+        <summary className="font-data cursor-pointer list-none text-[11px] text-[var(--text-3)] transition-colors duration-150 hover:text-[var(--text)]">
           Provenance <span className="group-open:hidden">+</span>
           <span className="hidden group-open:inline">-</span>
         </summary>
-        <div className="mt-2 space-y-1 text-[11px] text-[var(--text-2)]">
+        <div className="font-data mt-2 space-y-1 text-[11px] text-[var(--text-2)]">
           <p className="flex justify-between gap-3">
             <span className="text-[var(--text-3)]">fill tx</span>
             <a
@@ -98,8 +98,8 @@ export function VerdictCard({ r, big = false }: { r: CardReceipt; big?: boolean 
             <span className="text-[var(--text-3)]">wallet</span>
             <span>{short(r.wallet, 10, 6)}</span>
           </p>
-          <p className="pt-1 text-[10px] uppercase tracking-[0.18em] text-[var(--text-3)]">
-            verdict set by chain resolution · not by this desk
+          <p className="pt-1 text-[11px] text-[var(--text-3)]">
+            Verdict set by chain resolution, not by this desk.
           </p>
         </div>
       </details>

@@ -1,11 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Source_Code_Pro } from "next/font/google";
+import { Source_Code_Pro, Inter } from "next/font/google";
 import "./globals.css";
 
 const scp = Source_Code_Pro({
   variable: "--font-scp",
   subsets: ["latin"],
   weight: ["400", "600", "700"],
+});
+
+const display = Inter({
+  variable: "--font-display",
+  subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
@@ -34,7 +39,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`h-full antialiased ${scp.variable}`}>
+    <html lang="en" className={`h-full antialiased ${scp.variable} ${display.variable}`}>
       <body className="min-h-full">{children}</body>
     </html>
   );

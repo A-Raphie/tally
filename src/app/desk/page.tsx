@@ -193,7 +193,7 @@ export default function Home() {
           {error && (
             <div
               role="alert"
-              className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border border-[var(--line-2)] bg-[var(--surface)] px-4 py-3 text-sm"
+              className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg border border-[var(--line-2)] bg-[var(--surface)] px-4 py-3 text-sm"
             >
               <span>{error}</span>
               <button onClick={refresh} className="underline underline-offset-4 hover:text-[var(--text)]">
@@ -218,9 +218,9 @@ export default function Home() {
 
         {/* ── hero band: proof before actions ───────────────────────── */}
         <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_320px]">
-          <div className="border border-[var(--line)] bg-[var(--surface)] p-5">
+          <div className="card p-5">
             <div className="flex items-baseline justify-between">
-              <h2 className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--text-3)]">
+              <h2 className="text-sm font-semibold text-[var(--text)]">
                 Latest verdict card
               </h2>
               <span className="text-[10px] text-[var(--text-3)]">the product is the card</span>
@@ -235,8 +235,8 @@ export default function Home() {
             )}
           </div>
           <div className="flex flex-col gap-6">
-            <div className="border border-[var(--line)] bg-[var(--surface)] p-5">
-              <h2 className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--text-3)]">
+            <div className="card p-5">
+              <h2 className="text-sm font-semibold text-[var(--text)]">
                 Settled truth
               </h2>
               <p className="mt-3 text-5xl font-bold tracking-tight">
@@ -262,7 +262,7 @@ export default function Home() {
               <button
                 onClick={settle}
                 disabled={settling || openCount === 0}
-                className="mt-5 h-11 w-full rounded-lg border border-[var(--line-2)] text-xs font-bold uppercase tracking-[0.18em] transition-colors duration-150 hover:bg-[var(--surface-2)] disabled:opacity-40"
+                className="font-data mt-5 h-11 w-full rounded-full border border-[var(--line-2)] text-xs font-semibold transition-colors duration-150 hover:bg-[var(--surface-2)] disabled:opacity-40"
               >
                 {settling ? "Checking the chain…" : `Settle ${openCount} open`}
               </button>
@@ -276,7 +276,7 @@ export default function Home() {
         {/* ── live desk: price before you stake ─────────────────────── */}
         <section className="mt-12">
           <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <h2 className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--text-3)]">
+            <h2 className="text-sm font-semibold text-[var(--text)]">
               01 / Live desk
             </h2>
             <span className="text-[11px] text-[var(--text-2)]">
@@ -342,7 +342,7 @@ export default function Home() {
                       onClick={() => bet(m)}
                       disabled={betting !== null}
                       aria-label={`Stake 1 tUSDC on YES: ${m.question}`}
-                      className="h-11 shrink-0 rounded-lg bg-[var(--accent)] px-4 text-xs font-bold uppercase tracking-[0.14em] text-white transition-all duration-150 hover:bg-[var(--accent-hover)] active:scale-[0.96] disabled:opacity-40"
+                      className="font-data h-10 shrink-0 rounded-full bg-[var(--accent)] px-5 text-xs font-semibold text-white transition-all duration-150 hover:bg-[var(--accent-hover)] active:scale-[0.96] disabled:opacity-40"
                     >
                       {betting === m.marketId ? "Staking…" : "Stake 1 · YES"}
                     </button>
@@ -356,7 +356,7 @@ export default function Home() {
         {/* ── verdict cards ─────────────────────────────────────────── */}
         <section className="mt-12">
           <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <h2 className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--text-3)]">
+            <h2 className="text-sm font-semibold text-[var(--text)]">
               02 / Verdict cards
             </h2>
             <span className="text-[11px] text-[var(--text-2)]">
@@ -388,7 +388,7 @@ export default function Home() {
 
         {/* ── board ─────────────────────────────────────────────────── */}
         <section className="mt-12">
-          <h2 className="mb-2 text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--text-3)]">
+          <h2 className="mb-2 text-sm font-semibold text-[var(--text)]">
             03 / Board · settled truth only
           </h2>
           <ul className="divide-y divide-[var(--line)] border-y border-[var(--line)]">
