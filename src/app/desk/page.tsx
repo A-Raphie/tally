@@ -70,8 +70,7 @@ export default function Home() {
   // pre-hydration clicks are silently dead: keep every control visibly
   // disabled until React is live
   useEffect(() => {
-    const id = requestAnimationFrame(() => setHydrated(true));
-    return () => cancelAnimationFrame(id);
+    setHydrated(true);
   }, []);
 
   // the desk ticks locally between polls; nothing freezes for 15s
