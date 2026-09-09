@@ -70,11 +70,17 @@ const j = async (path, opts) => {
 // 6. bet: the real flow (spends 1 testnet tUSDC per side) — only with --bet
 if (DO_BET) {
   const { body: mb } = await j("/api/markets");
-  const m = mb?.markets?.find((x) => x.price !== null);
-  if (!m) {
-    check("bet.real-flow", false, "no crossable market available");
+  const crossable = (outcome) =>
+    mb?.markets?.find((x) => (outcome === "NO" ? x.noAsk != null : x.ask != null));
+  if (!mb?.markets?.length) {
+    check("bet.real-flow", false, "no markets");
   } else {
     for (const outcome of ["YES", "NO"]) {
+      const m = crossable(outcome);
+      if (!m) {
+        check(`bet.${outcome}-flow`, false, "no crossable market for side");
+        continue;
+      }
       const res = await j("/api/bet", {
         method: "POST",
         headers: { "content-type": "application/json" },

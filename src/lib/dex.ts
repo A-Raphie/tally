@@ -28,6 +28,31 @@ export function exchange(): SomniaMarkets {
 
 // is there a crossable ask right now? (lastPrice alone lies: a market can
 // have traded before and have an empty book now)
+type UnifiedLike = { id?: string; marketId?: string; outcomes?: Array<{ symbol?: string }> };
+
+export function noSymbolFor(marketId: string, registry: UnifiedLike[]): string | null {
+  for (const um of registry) {
+    if (String(um.id ?? um.marketId ?? "") !== marketId) continue;
+    const sym = um.outcomes?.[1]?.symbol;
+    return sym ?? null;
+  }
+  return null;
+}
+
+export async function getNoAsk(marketId: string): Promise<number | null> {
+  try {
+    await ensureRegistry();
+    const all = await exchange().loadMarkets(false);
+    const sym = noSymbolFor(marketId, Object.values(all) as unknown as UnifiedLike[]);
+    if (!sym) return null;
+    const book = await exchange().fetchOrderBook(sym, 1);
+    const ask = book.asks[0]?.[0];
+    return ask === undefined ? null : ask;
+  } catch {
+    return null;
+  }
+}
+
 export async function getAsk(marketId: string): Promise<number | null> {
   try {
     await ensureRegistry();
@@ -51,6 +76,7 @@ export type LiveMarket = {
   quoteDecimals: number | null;
   price: number | null;
   ask?: number | null;
+  noAsk?: number | null;
 };
 
 export async function listLive(): Promise<LiveMarket[]> {

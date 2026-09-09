@@ -11,6 +11,7 @@ type Market = {
   expiry: number;
   price: number | null;
   ask: number | null;
+  noAsk: number | null | undefined;
   poolAddress: string;
 };
 
@@ -400,7 +401,7 @@ export default function Home() {
                         aria-label={`Stake 1 tUSDC on NO: ${m.question}`}
                         className="font-data h-10 rounded-full border border-[var(--line-2)] px-5 text-xs font-semibold text-[var(--text)] transition-all duration-150 hover:bg-[var(--surface-2)] active:scale-[0.96] disabled:opacity-40"
                       >
-                        {!hydrated ? "…" : betting === m.marketId + "NO" ? "Staking…" : "NO"}
+                        {!hydrated ? "…" : betting === m.marketId + "NO" ? "Staking…" : m.noAsk === null ? "No book" : "NO"}
                       </button>
                     </div>
                   </li>
