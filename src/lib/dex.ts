@@ -5,6 +5,8 @@ const INDEXER = "https://dev.smk.somnia.host/v1/graphql";
 
 let cached: SomniaMarkets | undefined;
 
+let registryAt = 0;
+
 export function exchange(): SomniaMarkets {
   if (cached) return cached;
   const key = process.env.TALLY_TEST_PRIVATE_KEY as `0x${string}` | undefined;
@@ -71,7 +73,11 @@ export async function placeBet(
   outcome: "YES" | "NO" = "YES"
 ): Promise<BetResult> {
   const ex = exchange();
-  await ex.loadMarkets(true);
+  // the registry build is the slow half of a stake; rebuild at most every 5 min
+  if (Date.now() - registryAt > 5 * 60 * 1000) {
+    await ex.loadMarkets(true);
+    registryAt = Date.now();
+  }
 
   const onchain = await ex.client.getMarketOnchain(marketId as `0x${string}`);
   if (onchain.status !== 1) throw new Error(`market not Trading (status ${onchain.status})`);

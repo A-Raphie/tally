@@ -201,6 +201,10 @@ export default async function Landing() {
         <div className="mt-6 space-y-3">
           {[
             {
+              q: "Do I connect a wallet?",
+              a: "No. The desk is one funded testnet agent. Clicking YES or NO directs that agent to stake 1 tUSDC from its own balance; the printed card is the receipt of its fill.",
+            },
+            {
               q: "Is this real money?",
               a: "No. Somnia Shannon testnet: gas is faucet STT, collateral is testnet tUSDC, and no mainnet funds exist anywhere in the desk.",
             },

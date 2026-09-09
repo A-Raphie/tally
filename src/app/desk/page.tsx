@@ -194,6 +194,21 @@ export default function Home() {
           </p>
         </header>
 
+        {/* how staking works: the click directs a funded agent, no wallet */}
+        <p className="mt-4 border border-[var(--line)] bg-[var(--surface)] rounded-lg px-4 py-3 text-sm leading-relaxed text-[var(--text-2)]">
+          <span className="font-semibold text-[var(--text)]">How staking works:</span> there is no
+          wallet to connect. Every click directs this desk&apos;s funded testnet agent to stake 1
+          tUSDC from its own balance and prints the card here. Nothing of yours is ever at stake.
+        </p>
+
+        {(betting || settling) && (
+          <p className="font-data mt-4 text-xs text-[var(--prophecy)]" role="status" aria-live="polite">
+            {settling
+              ? "Reading each open card against the market's onchain resolution…"
+              : "Crossing the book on Somnia and printing the card… can take a few seconds."}
+          </p>
+        )}
+
         {/* alerts */}
         <div aria-live="polite">
           {error && (
