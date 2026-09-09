@@ -4,6 +4,9 @@ import { addReceipt } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
+// chain reads + SDK init can exceed the 10s serverless default on cold starts
+export const maxDuration = 60;
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as { marketId?: string; amount?: number; question?: string };

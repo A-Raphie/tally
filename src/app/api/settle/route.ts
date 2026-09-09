@@ -4,6 +4,9 @@ import { readReceipts, writeReceipts, type Receipt } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
+// chain reads + SDK init can exceed the 10s serverless default on cold starts
+export const maxDuration = 60;
+
 // Scan OPEN receipts against the indexer; resolve to WON / LOST / VOID with payout math.
 export async function POST() {
   try {

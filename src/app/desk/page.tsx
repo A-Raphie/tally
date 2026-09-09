@@ -54,6 +54,7 @@ export default function Home() {
   const [board, setBoard] = useState<BoardRow[]>([]);
   const [betting, setBetting] = useState<string | null>(null);
   const [settling, setSettling] = useState(false);
+  const [pollError, setPollError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<{ tx: string } | null>(null);
   const [conn, setConn] = useState<Conn>("up");
@@ -76,17 +77,17 @@ export default function Home() {
       // partial outage: keep the last good state, never wipe history with {error}
       if (m.error && r.error && b.error) {
         setConn("down");
-        setError("tally server unreachable · showing last known state");
+        setPollError("tally server unreachable · showing last known state");
         return;
       }
       if (!m.error) setMarkets(m.markets ?? []);
       if (!r.error) setReceipts(r.receipts ?? []);
       if (!b.error) setBoard(b.board ?? []);
       setConn("up");
-      setError(null);
+      setPollError(null);
     } catch {
       setConn("down");
-      setError("tally server unreachable · showing last known state");
+      setPollError("tally server unreachable · showing last known state");
     }
   }, []);
 
@@ -105,6 +106,7 @@ export default function Home() {
   async function bet(m: Market) {
     setBetting(m.marketId);
     setError(null);
+    setPollError(null);
     try {
       const res = await fetch("/api/bet", {
         method: "POST",
@@ -127,6 +129,7 @@ export default function Home() {
   async function settle() {
     setSettling(true);
     setError(null);
+    setPollError(null);
     try {
       const res = await fetch("/api/settle", { method: "POST" });
       const json = await res.json();
