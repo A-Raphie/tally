@@ -38,7 +38,7 @@ export default async function Landing() {
             Desk →
           </Link>
         </div>
-        <h1 className="mt-10 max-w-[20ch] text-5xl font-bold leading-[1.08] tracking-[-0.02em] text-balance sm:text-6xl">
+        <h1 className="mt-10 max-w-[26ch] text-5xl font-bold leading-[1.08] tracking-[-0.02em] text-balance sm:text-6xl">
           Every prediction call leaves a <span className="text-[var(--accent)]">receipt</span>.
         </h1>
         <div className="mt-8 grid items-start gap-10 lg:grid-cols-[1fr_400px]">
