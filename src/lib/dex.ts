@@ -50,7 +50,7 @@ export type LiveMarket = {
   noTokenId: string | null;
   quoteDecimals: number | null;
   price: number | null;
-  ask: number | null;
+  ask?: number | null;
 };
 
 export async function listLive(): Promise<LiveMarket[]> {
