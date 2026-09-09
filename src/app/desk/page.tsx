@@ -349,7 +349,7 @@ export default function Home() {
             </div>
           )}
 
-          {desk !== null && desk.length > 0 && markets.every((m) => m.ask === null) && (
+          {desk !== null && desk.length > 0 && markets !== null && markets.length > 0 && markets.every((m) => m.ask === null) && (
             <div className="mb-3 border border-[var(--line-2)] bg-[var(--surface)] rounded-lg px-4 py-3 text-sm text-[var(--text-2)]">
               Every listed book is empty right now. Fresh windows open with no resting asks; the
               buttons unlock the moment a seller appears (usually within a minute or two).
