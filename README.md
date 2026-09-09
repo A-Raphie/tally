@@ -48,8 +48,8 @@ Gas: claim STT at https://testnet.somnia.network/. Collateral: tUSDC self-mints 
 
 | Claim | Status |
 |---|---|
-| Live order placement on DreamDEX testnet | Proven. Three fills: spike `0x623efd7af6101cd28c80cc787ee444087301bf63256d6609cec61f49c6ac0d80`, app receipts `0x82b7ca65b7fc7d57f34db72ecf917edd9ba6a1f86bdab2467c4ee7b2919e551f` and `0xf39b045717f2f3adfff27276fd83f10b4b42c454f2fdf48c1a309d9abf5ba156`. |
-| Settlement against chain resolution | Proven both ways. Receipt `0x82b7ca65...` resolved LOST (payout 0) and receipt `0xf39b0457...` resolved WON (payout 2.00 tUSDC: 2 contracts staked at 0.57, returned 2.00), each after its market finalized on the indexer. |
+| Live order placement on DreamDEX testnet | Proven on both sides. YES fills: three earlier txs plus `0x61d3fbc4260e5ae2`; NO fill: `0x6defc8e6a095bd4b` (`ETH-0-09SEP26-2100-8624/tUSDC#NO` at 0.741). Original three: spike `0x623efd7af6101cd28c80cc787ee444087301bf63256d6609cec61f49c6ac0d80`, app receipts `0x82b7ca65b7fc7d57f34db72ecf917edd9ba6a1f86bdab2467c4ee7b2919e551f` and `0xf39b045717f2f3adfff27276fd83f10b4b42c454f2fdf48c1a309d9abf5ba156`. |
+| Settlement against chain resolution | Proven both ways for YES positions. NO positions settle through the same code path (NO wins when the resolution names outcome 1); a live NO settlement has not been observed yet. | Receipt `0x82b7ca65...` resolved LOST (payout 0) and receipt `0xf39b0457...` resolved WON (payout 2.00 tUSDC: 2 contracts staked at 0.57, returned 2.00), each after its market finalized on the indexer. |
 | Receipt per fill with explorer link | Proven in the running app. |
 | Board ranked by settled truth | Working; aggregates the receipts above. |
 | Deployed on Vercel | Live at https://tally-dreamdex.vercel.app with the same testnet agent. Known serverless gap: the card log is per-instance on Vercel, so the site boots from a bundled seed of the real receipts and cards placed through the site persist per instance. The local runner and the chain are the durable sources. |
@@ -58,7 +58,7 @@ Gas: claim STT at https://testnet.somnia.network/. Collateral: tUSDC self-mints 
 
 ## Scope cuts
 
-No orderbook depth chart, no NO-side entry (YES only by design), no user wallets (one agent wallet is the product), receipts stored per runner rather than onchain.
+No orderbook depth chart, no user wallets (one agent wallet is the product), receipts stored per runner rather than onchain. Both sides trade: YES fills on the YES book, NO fills on the NO book; the desk quotes NO at the mirrored ask.
 
 ## Submission
 
