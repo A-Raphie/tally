@@ -117,6 +117,18 @@ export default async function Landing() {
         </div>
       </Section>
 
+      {/* ── thesis moment ────────────────────────────────────────────── */}
+      <section className="mt-20 border-y border-[var(--line)] py-14 text-center">
+        <p className="text-3xl font-bold leading-tight tracking-tight text-balance sm:text-4xl">
+          Trust the receipt,
+          <br />
+          not the storyteller.
+        </p>
+        <p className="mx-auto mt-4 max-w-[52ch] text-sm leading-relaxed text-[var(--text-2)] text-pretty">
+          One line of settlement math beats a page of claimed profits, because the chain signed it.
+        </p>
+      </section>
+
       {/* ── mechanism ────────────────────────────────────────────────── */}
       <Section n="02" label="Mechanism">
         <ol className="grid gap-5 sm:grid-cols-3">
@@ -176,6 +188,37 @@ export default async function Landing() {
               </li>
             ))}
           </ul>
+        </div>
+      </Section>
+
+      {/* ── faq ──────────────────────────────────────────────────────── */}
+      <Section n="04" label="Questions the desk expects">
+        <div className="divide-y divide-[var(--line)] border-y border-[var(--line)]">
+          {[
+            {
+              q: "Is this real money?",
+              a: "No. Somnia Shannon testnet: gas is faucet STT, collateral is testnet tUSDC, and no mainnet funds exist anywhere in the desk.",
+            },
+            {
+              q: "Who decides WON or LOST?",
+              a: "The market's onchain resolution, read through the indexer after it finalizes. The desk validates fills and reads results; it cannot flip a card by hand.",
+            },
+            {
+              q: "Can winnings be withdrawn?",
+              a: "Not yet. Cards settle the math against the chain's resolution; redeeming positions through the trader tier is the documented next step.",
+            },
+          ].map((f) => (
+            <details key={f.q} className="group px-1 py-4">
+              <summary className="flex cursor-pointer list-none items-baseline justify-between gap-4 text-sm text-[var(--text)] transition-colors duration-150 hover:text-[var(--text-2)]">
+                {f.q}
+                <span className="text-[var(--text-3)] group-open:hidden">+</span>
+                <span className="hidden text-[var(--text-3)] group-open:inline">-</span>
+              </summary>
+              <p className="mt-3 max-w-[68ch] text-sm leading-relaxed text-[var(--text-2)] text-pretty">
+                {f.a}
+              </p>
+            </details>
+          ))}
         </div>
       </Section>
 
