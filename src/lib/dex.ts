@@ -141,11 +141,21 @@ export async function placeBet(
   const book = await ex.fetchOrderBook(ref, 5);
   const ask = book.asks[0]?.[0];
   if (ask === undefined) throw new Error(`no resting ask on ${outcome} book`);
-  const price = Math.min(0.97, ask + 0.02);
-
-  const order = await ex.createOrder(ref, "limit", "buy", amount, price, {
-    timeInForce: "IOC",
-  });
+  // thin testnet books move between the ask read and the fill: one retry
+  // with a wider allowance before giving up with a human message
+  let price = Math.min(0.97, ask + 0.02);
+  let order: Awaited<ReturnType<typeof ex.createOrder>>;
+  try {
+    order = await ex.createOrder(ref, "limit", "buy", amount, price, { timeInForce: "IOC" });
+  } catch (e) {
+    const msg = String(e);
+    if (!/ImmediateOrCancelNoFill|no fill/i.test(msg)) throw e;
+    const book2 = await ex.fetchOrderBook(ref, 5);
+    const ask2 = book2.asks[0]?.[0];
+    if (ask2 === undefined) throw new Error(`the ${outcome} book emptied before the order landed. Try again.`);
+    price = Math.min(0.97, ask2 + 0.05);
+    order = await ex.createOrder(ref, "limit", "buy", amount, price, { timeInForce: "IOC" });
+  }
   const info = (order as { info?: { receipt?: { transactionHash?: string }; orderId?: unknown } })
     .info;
   const txHash = info?.receipt?.transactionHash ?? (order as { txHash?: string }).txHash ?? "";

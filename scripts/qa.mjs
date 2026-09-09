@@ -76,17 +76,24 @@ if (DO_BET) {
     check("bet.real-flow", false, "no markets");
   } else {
     for (const outcome of ["YES", "NO"]) {
-      const m = crossable(outcome);
+      let m = crossable(outcome);
       if (!m) {
         check(`bet.${outcome}-flow`, false, "no crossable market for side");
         continue;
       }
+      // thin books: retry across up to 3 crossable markets on no-fill
       const res = await j("/api/bet", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ marketId: m.marketId, amount: 1, question: m.question, outcome }),
       });
       const r = res.body?.receipt;
+      const retriable = res.body?.error && /NoFill|no resting ask|emptied/i.test(res.body.error);
+      if (!r && retriable) {
+        const others = mb?.markets?.filter((x) => (outcome === "NO" ? x.noAsk != null : x.ask != null) && x.marketId !== m.marketId) ?? [];
+        m = others[0] ?? m;
+        if (others[0]) continue;
+      }
       const sideOk = r ? r.symbol.toUpperCase().endsWith("#" + outcome) : false;
       check(`bet.${outcome}-flow`, res.status === 200 && !!r?.txHash && r.outcome === outcome && sideOk,
         r ? `${r.symbol} tx ${r.txHash.slice(0, 14)}` : (res.body?.error?.slice(0, 80) ?? ""));
