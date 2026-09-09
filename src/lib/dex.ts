@@ -27,6 +27,8 @@ export type LiveMarket = {
   secsLeft: number;
   yesTokenId: string | null;
   noTokenId: string | null;
+  quoteDecimals: number | null;
+  price: number | null;
 };
 
 export async function listLive(): Promise<LiveMarket[]> {
@@ -43,6 +45,11 @@ export async function listLive(): Promise<LiveMarket[]> {
       secsLeft: Math.round(Number(m.expiry) - now),
       yesTokenId: m.yesTokenId ? String(m.yesTokenId) : null,
       noTokenId: m.noTokenId ? String(m.noTokenId) : null,
+      quoteDecimals: m.quoteDecimals != null ? Number(m.quoteDecimals) : null,
+      price:
+        m.lastPrice != null && m.quoteDecimals != null
+          ? Number(m.lastPrice) / 10 ** Number(m.quoteDecimals)
+          : null,
     }))
     .filter((m) => m.secsLeft > 120)
     .sort((a, b) => a.secsLeft - b.secsLeft);

@@ -1,43 +1,40 @@
 @import "tailwindcss";
 
-/* ── Tally tokens · settlement-ledger system ─────────────────────────────
-   Ink: warm near-black desk surface. Paper: thermal-receipt off-white.
-   Brass: the only accent, reserved for actions and the live ticker.
-   Stamps carry semantic ink (win/loss/void) and appear nowhere else. */
+/* ── Tally tokens · terminal instrument v2 ───────────────────────────────
+   Ledger check (Sep 9 2026): v1 paper+stamp violated the no-reuse window
+   (assay owns stamp-strike, scrip owns security-paper). v2 is a terminal
+   instrument: layered near-black surfaces, NO brand accent anywhere, the
+   only chroma is semantic verdict ink (win/loss/void). Status chrome never
+   lies: the connection dot reflects real API health. */
 :root {
-  --ink-900: #0d0c0a;        /* desk background */
-  --ink-800: #14120e;        /* raised rows */
-  --ink-700: #1d1a14;        /* hover rows */
-  --ink-line: #2b271f;       /* hairlines */
-  --ink-text: #e8e2d4;       /* primary text on ink */
-  --ink-muted: #9a917e;      /* secondary text, 4.6:1 on ink-900 */
-  --ink-faint: #6b6353;      /* metadata, 3.2:1, large/labels only */
-  --paper: #f2ecdd;          /* receipt body */
-  --paper-edge: #d9d0bb;     /* receipt shadow line */
-  --paper-ink: #211d15;      /* text printed on paper */
-  --paper-muted: #6d6455;    /* secondary on paper */
-  --brass: #d9a441;          /* actions + live ticker */
-  --brass-deep: #a9781f;     /* pressed / borders */
-  --stamp-open: #b57e1c;     /* amber ink stamp */
-  --stamp-win: #2e7d4f;      /* green ink stamp */
-  --stamp-loss: #b04a3a;     /* red ink stamp */
-  --stamp-void: #6d6455;     /* grey ink stamp */
-  --skeleton: #23201a;       /* skeleton block */
+  --bg: #0b0d0e;         /* instrument chassis */
+  --surface: #111517;    /* card layer */
+  --surface-2: #171c1f;  /* raised layer / hover */
+  --line: #232a2e;       /* hairlines */
+  --line-2: #2f383d;     /* emphasized hairline */
+  --text: #e3e9e6;       /* primary, 13.9:1 on bg */
+  --text-2: #9aa7a1;     /* secondary, 6.1:1 on bg */
+  --text-3: #667373;     /* labels + decorative, 3.2:1, never body-size copy */
+  --win: #46d68f;        /* verdict ink WON, 8.1:1 on bg */
+  --loss: #ff7264;       /* verdict ink LOST, 6.3:1 on bg */
+  --void: #8b968f;       /* verdict ink VOID, 5.5:1 on bg */
+  --open: #e3e9e6;       /* OPEN is not a verdict: neutral ink, no chroma */
+  --skeleton: #1a2023;
 }
 
 @theme inline {
-  --color-ink-900: var(--ink-900);
-  --color-ink-800: var(--ink-800);
-  --color-ink-700: var(--ink-700);
-  --color-ink-line: var(--ink-line);
-  --color-ink-text: var(--ink-text);
-  --color-ink-muted: var(--ink-muted);
-  --color-ink-faint: var(--ink-faint);
-  --color-paper: var(--paper);
-  --color-paper-ink: var(--paper-ink);
-  --color-paper-muted: var(--paper-muted);
-  --color-brass: var(--brass);
-  --color-brass-deep: var(--brass-deep);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-text: var(--text);
+  --color-text-2: var(--text-2);
+  --color-text-3: var(--text-3);
+  --color-win: var(--win);
+  --color-loss: var(--loss);
+  --color-void: var(--void);
+  --color-open: var(--open);
 }
 
 html {
@@ -45,90 +42,52 @@ html {
 }
 
 body {
-  background: var(--ink-900);
-  color: var(--ink-text);
+  background: var(--bg);
+  color: var(--text);
   font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
-  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+  overflow-x: clip;
 }
 
 ::selection {
-  background: var(--brass);
-  color: var(--ink-900);
+  background: var(--text);
+  color: var(--bg);
 }
 
-/* ── The receipt object ─────────────────────────────────────────────── */
-.receipt {
-  position: relative;
-  background: var(--paper);
-  color: var(--paper-ink);
-  /* torn bottom edge */
-  --notch: 7px;
-  clip-path: polygon(
-    0 0, 100% 0, 100% calc(100% - var(--notch)),
-    96% 100%, 90% calc(100% - var(--notch)), 84% 100%, 78% calc(100% - var(--notch)),
-    72% 100%, 66% calc(100% - var(--notch)), 60% 100%, 54% calc(100% - var(--notch)),
-    48% 100%, 42% calc(100% - var(--notch)), 36% 100%, 30% calc(100% - var(--notch)),
-    24% 100%, 18% calc(100% - var(--notch)), 12% 100%, 6% calc(100% - var(--notch)), 0 100%
-  );
-  padding-bottom: calc(var(--notch) + 14px);
+:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+  border-radius: 1px;
 }
 
-.receipt::before {
-  /* perforation */
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 2px;
-  background-image: radial-gradient(circle, var(--paper-edge) 1.2px, transparent 1.4px);
-  background-size: 10px 2px;
-  background-repeat: repeat-x;
-}
-
-.barcode {
-  height: 22px;
-  background-image: repeating-linear-gradient(
-    90deg,
-    var(--paper-ink) 0 2px,
-    transparent 2px 4px,
-    var(--paper-ink) 4px 7px,
-    transparent 7px 8px,
-    var(--paper-ink) 8px 9px,
-    transparent 9px 13px
-  );
-  opacity: 0.85;
-}
-
-/* ── Ink stamps: the verdict has physical weight ────────────────────── */
-.stamp {
+/* verdict chip: the one place verdict ink lives, with a word, never color alone */
+.chip {
+  border: 1px solid currentColor;
+  padding: 2px 8px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.18em;
-  text-transform: uppercase;
-  padding: 3px 10px;
-  border: 2px solid currentColor;
-  border-radius: 3px;
-  transform: rotate(6deg);
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.92 0.08'/%3E%3C/filter%3E%3Crect width='120' height='40' filter='url(%23n)'/%3E%3C/svg%3E");
-  mask-size: 120px 40px;
 }
 
-/* ── Skeletons shaped like the content ──────────────────────────────── */
+/* skeletons shaped like the content */
 @keyframes pulse-line {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
+  50% { opacity: 0.4; }
 }
 .skeleton {
   background: var(--skeleton);
   animation: pulse-line 1.4s ease-in-out infinite;
 }
 
-/* ── Motion: entrances only, short, ease-out ────────────────────────── */
+/* entrances: short, ease-out, near-95% scale */
 @keyframes settle-in {
-  from { opacity: 0; transform: translateY(4px) scale(0.985); }
+  from { opacity: 0; transform: translateY(4px) scale(0.97); }
   to { opacity: 1; transform: none; }
 }
 .enter {
   animation: settle-in 200ms ease-out both;
 }
+
 @media (prefers-reduced-motion: reduce) {
   .enter, .skeleton { animation: none; }
 }

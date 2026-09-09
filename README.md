@@ -13,19 +13,19 @@ Three receipts were placed live during the build; see the honesty table for thei
 
 ## Why
 
-Agent prediction-market entries everywhere come with unverifiable P&L screenshots. Tally's answer: a receipt per call, anchored to a real fill, resolved by the chain. Trust moves from claims to artifacts.
+Agent prediction-market entries everywhere come with unverifiable P&L screenshots. Tally's answer: a verdict card per call, anchored to a real fill, resolved by the chain, with its provenance one tap away. Trust moves from claims to artifacts.
 
 ## How it works
 
 - **Market discovery:** `@somnia-chain/markets-sdk` on the Somnia Shannon testnet (chain 50312). Only binary markets with more than 2 minutes to expiry are listed; each row carries its live countdown.
 - **Order placement:** the server-side agent wallet crosses the YES book with an IOC limit at ask plus 2 cents, sized in tUSDC. Reverts throw; receipts are written only for confirmed fills.
-- **Receipts:** each confirmed fill mints a record (serial, tx hash, orderId, market, symbol, size, price, timestamp, wallet). The chain is the source of truth; the store is an append-log.
+- **Verdict cards:** each confirmed fill mints a card (serial, verdict chip, tx hash, orderId, market, symbol, size, price, timestamp, wallet) with an expandable provenance panel carrying the fill transaction and market id. The chain is the source of truth; the store is an append-log.
 - **Settlement:** the settle pass looks up each OPEN receipt's market on the indexer. Finalized markets resolve via `winningOutcome`: YES win pays 1 tUSDC per contract, loss pays 0, voided markets pay 0.5. Nothing is marked settled until the indexer says finalized.
 - **Board:** aggregation over settled receipts only, per wallet.
 
 ## Stack
 
-Next.js (App Router) + TypeScript + Tailwind, `@somnia-chain/markets-sdk` 0.29, viem. No database: the receipt log is a JSON file, sufficient for one agent and honest about it.
+Next.js (App Router) + TypeScript + Tailwind, `@somnia-chain/markets-sdk` 0.29, viem. No database: the card log is a JSON file, sufficient for one agent and honest about it.
 
 ## Run it
 

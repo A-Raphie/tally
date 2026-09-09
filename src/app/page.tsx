@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Market = {
   marketId: string;
   question: string;
   secsLeft: number;
-  status: string;
+  expiry: number;
+  price: number | null;
   poolAddress: string;
 };
 
@@ -34,27 +35,46 @@ type BoardRow = {
   returned: number;
 };
 
+type Conn = "up" | "down";
+
 const EXPLORER = "https://shannon-explorer.somnia.network/tx/";
 
-const STAMP_STYLE: Record<Receipt["status"], string> = {
-  OPEN: "text-[var(--stamp-open)]",
-  WON: "text-[var(--stamp-win)]",
-  LOST: "text-[var(--stamp-loss)]",
-  VOID: "text-[var(--stamp-void)]",
+const CHIP: Record<Receipt["status"], string> = {
+  OPEN: "text-[var(--open)]",
+  WON: "text-[var(--win)]",
+  LOST: "text-[var(--loss)]",
+  VOID: "text-[var(--void)]",
 };
 
 function fmtSecs(s: number): string {
-  if (s < 3600) return `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
-  return `${Math.floor(s / 86400)}d ${Math.floor((s % 86400) / 3600)}h`;
+  const t = Math.max(0, Math.floor(s));
+  if (t <= 0) return "closing";
+  if (t < 3600) return `${Math.floor(t / 60)}m ${String(t % 60).padStart(2, "0")}s`;
+  if (t < 86400) return `${Math.floor(t / 3600)}h ${Math.floor((t % 3600) / 60)}m`;
+  return `${Math.floor(t / 86400)}d ${Math.floor((t % 86400) / 3600)}h`;
 }
 
 function clock(ts: number): string {
-  return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+  return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 function short(a: string, head = 8, tail = 4): string {
   return a.length > head + tail + 2 ? `${a.slice(0, head)}···${a.slice(-tail)}` : a;
+}
+
+function assetOf(q: string): string {
+  const m = q.match(/^(BTC|ETH|SOL|SOMI)\b/i);
+  return m ? m[1].toUpperCase() : "EV";
+}
+
+function PriceTag({ price }: { price: number | null }) {
+  if (price === null || Number.isNaN(price)) return <span className="text-[var(--text-3)]">no book</span>;
+  return (
+    <span className="tabular-nums">
+      <span className="text-[var(--text)]">YES {price.toFixed(2)}</span>
+      <span className="text-[var(--text-3)]"> · pays 1.00</span>
+    </span>
+  );
 }
 
 export default function Home() {
@@ -64,8 +84,16 @@ export default function Home() {
   const [betting, setBetting] = useState<string | null>(null);
   const [settling, setSettling] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [marketsError, setMarketsError] = useState<string | null>(null);
-  const [flash, setFlash] = useState<{ tx: string; ok: boolean } | null>(null);
+  const [flash, setFlash] = useState<{ tx: string } | null>(null);
+  const [conn, setConn] = useState<Conn>("up");
+  const [now, setNow] = useState(() => Date.now());
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // the desk ticks locally between polls; nothing freezes for 15s
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const refresh = useCallback(async () => {
     try {
@@ -74,12 +102,20 @@ export default function Home() {
         fetch("/api/receipts").then((x) => x.json()),
         fetch("/api/board").then((x) => x.json()),
       ]);
-      if (m.error) setMarketsError(m.error);
-      else { setMarkets(m.markets ?? []); setMarketsError(null); }
-      setReceipts(r.receipts ?? []);
-      setBoard(b.board ?? []);
+      // partial outage: keep the last good state, never wipe history with {error}
+      if (m.error && r.error && b.error) {
+        setConn("down");
+        setError("tally server unreachable · showing last known state");
+        return;
+      }
+      if (!m.error) setMarkets(m.markets ?? []);
+      if (!r.error) setReceipts(r.receipts ?? []);
+      if (!b.error) setBoard(b.board ?? []);
+      setConn("up");
+      setError(null);
     } catch {
-      setError("could not reach the tally server");
+      setConn("down");
+      setError("tally server unreachable · showing last known state");
     }
   }, []);
 
@@ -89,10 +125,15 @@ export default function Home() {
     return () => clearInterval(t);
   }, [refresh]);
 
+  useEffect(() => {
+    return () => {
+      if (flashTimer.current) clearTimeout(flashTimer.current);
+    };
+  }, []);
+
   async function bet(m: Market) {
     setBetting(m.marketId);
     setError(null);
-    setFlash(null);
     try {
       const res = await fetch("/api/bet", {
         method: "POST",
@@ -101,11 +142,12 @@ export default function Home() {
       });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
-      setFlash({ tx: json.receipt?.txHash ?? "", ok: true });
+      setFlash({ tx: json.receipt?.txHash ?? "" });
+      if (flashTimer.current) clearTimeout(flashTimer.current);
+      flashTimer.current = setTimeout(() => setFlash(null), 6000);
       await refresh();
     } catch (e) {
       setError(String((e as Error).message ?? e));
-      setFlash(null);
     } finally {
       setBetting(null);
     }
@@ -129,235 +171,284 @@ export default function Home() {
   const openCount = receipts.filter((r) => r.status === "OPEN").length;
   const wonCount = receipts.filter((r) => r.status === "WON").length;
   const lostCount = receipts.filter((r) => r.status === "LOST").length;
-  const totalStaked = receipts.reduce((s, r) => s + r.filled * r.price, 0);
+  const returned = receipts.reduce((s, r) => s + (r.payout ?? 0), 0);
+  const staked = receipts.reduce((s, r) => s + r.filled * r.price, 0);
+  const heldIds = new Set(receipts.map((r) => r.marketId));
+  const latest = receipts[0];
+  const desk = markets === null ? null : markets.slice(0, 5);
 
   return (
     <main className="min-h-screen">
-      <div className="mx-auto max-w-3xl px-5 pb-16">
-        {/* ── Masthead ─────────────────────────────────────────────── */}
-        <header className="pt-12 pb-8 border-b border-[var(--ink-line)]">
-          <div className="flex items-baseline justify-between gap-4">
-            <h1 className="text-4xl font-bold tracking-[0.08em] text-[var(--ink-text)]">
-              TALLY<span className="text-[var(--brass)]">.</span>
+      <div className="mx-auto max-w-5xl px-5 pb-16">
+        {/* ── masthead + status strip: chrome never lies ────────────── */}
+        <header className="pt-10">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <h1 className="text-3xl font-bold tracking-[0.08em]">
+              TALLY<span className="text-[var(--text-3)]">_</span>
             </h1>
-            <p className="text-xs text-[var(--ink-faint)] tracking-widest uppercase">Settlement ledger</p>
+            <p className="text-[10px] uppercase tracking-[0.28em] text-[var(--text-3)]">
+              Settlement instrument
+            </p>
           </div>
-          <p className="mt-3 max-w-[62ch] text-sm leading-relaxed text-[var(--ink-muted)] text-pretty">
-            Receipts for prediction calls. The desk stakes testnet tUSDC on live DreamDEX markets;
-            every fill prints a receipt with its real transaction, and the chain, not the desk,
-            decides WON or LOST.
+          <div
+            role="status"
+            aria-live="polite"
+            className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-y border-[var(--line)] py-2 text-[10px] uppercase tracking-[0.22em]"
+          >
+            <span className="flex items-center gap-2">
+              <span
+                className={`inline-block h-1.5 w-1.5 rounded-full ${conn === "up" ? "bg-[var(--win)]" : "bg-[var(--text-3)]"}`}
+              />
+              <span className={conn === "up" ? "text-[var(--win)]" : "text-[var(--text-2)]"}>
+                {conn === "up" ? "Connected" : "Reconnecting"}
+              </span>
+            </span>
+            <span className="text-[var(--text-3)]">·</span>
+            <span className="text-[var(--text-2)]">Somnia Shannon 50312</span>
+            <span className="text-[var(--text-3)]">·</span>
+            <span className="text-[var(--text-2)]">DreamDEX Event Contracts</span>
+            <span className="text-[var(--text-3)]">·</span>
+            <span className="text-[var(--text-3)]">Testnet</span>
+          </div>
+          <p className="mt-5 max-w-[68ch] text-sm leading-relaxed text-[var(--text-2)] text-pretty">
+            The desk stakes 1 tUSDC YES on live prediction markets. Every fill prints a verdict
+            card carrying its real transaction; when the market finalizes, the chain, not the desk,
+            flips it to WON or LOST. Every number shows its source.
           </p>
-          {/* live ticker */}
-          <div className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs tabular-nums">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--brass)]" />
-            <span className="text-[var(--brass)]">LIVE</span>
-            <span className="text-[var(--ink-faint)]">·</span>
-            <span className="text-[var(--ink-muted)]">{receipts.length} receipts</span>
-            <span className="text-[var(--ink-faint)]">·</span>
-            <span className="text-[var(--ink-muted)]">{openCount} open</span>
-            <span className="text-[var(--ink-faint)]">·</span>
-            <span className="text-[var(--stamp-win)]">{wonCount} won</span>
-            <span className="text-[var(--ink-faint)]">·</span>
-            <span className="text-[var(--stamp-loss)]">{lostCount} lost</span>
-            <span className="text-[var(--ink-faint)]">·</span>
-            <span className="text-[var(--ink-muted)]">{totalStaked.toFixed(2)} tUSDC staked</span>
-          </div>
         </header>
 
-        {error && (
-          <div className="mt-6 flex items-center justify-between border border-[var(--stamp-loss)] bg-[#2a1512] px-4 py-3 text-sm text-[var(--ink-text)]">
-            <span>{error}</span>
-            <button onClick={refresh} className="ml-4 shrink-0 underline underline-offset-4 hover:text-[var(--brass)]">
-              Retry
-            </button>
+        {/* alerts */}
+        <div aria-live="polite">
+          {error && (
+            <div
+              role="alert"
+              className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border border-[var(--line-2)] bg-[var(--surface)] px-4 py-3 text-sm"
+            >
+              <span>{error}</span>
+              <button onClick={refresh} className="underline underline-offset-4 hover:text-[var(--text)]">
+                Retry
+              </button>
+            </div>
+          )}
+          {flash && (
+            <p className="mt-5 text-xs text-[var(--text-2)]">
+              Fill confirmed · verdict card printed ·{" "}
+              <a
+                href={EXPLORER + flash.tx}
+                target="_blank"
+                rel="noreferrer"
+                className="underline underline-offset-4 hover:text-[var(--text)]"
+              >
+                tx {short(flash.tx, 10, 6)}
+              </a>
+            </p>
+          )}
+        </div>
+
+        {/* ── hero band: proof before actions ───────────────────────── */}
+        <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_320px]">
+          <div className="border border-[var(--line)] bg-[var(--surface)] p-5">
+            <div className="flex items-baseline justify-between">
+              <h2 className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--text-3)]">
+                Latest verdict card
+              </h2>
+              <span className="text-[10px] text-[var(--text-3)]">the product is the card</span>
+            </div>
+            {latest ? (
+              <VerdictCard r={latest} big />
+            ) : (
+              <div className="mt-4 border border-dashed border-[var(--line)] px-4 py-8 text-sm text-[var(--text-2)]">
+                No verdict cards yet. Stake on the desk below and the first one prints here with its
+                real transaction.
+              </div>
+            )}
           </div>
-        )}
+          <div className="flex flex-col gap-6">
+            <div className="border border-[var(--line)] bg-[var(--surface)] p-5">
+              <h2 className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--text-3)]">
+                Settled truth
+              </h2>
+              <p className="mt-3 text-5xl font-bold tracking-tight">
+                {wonCount}
+                <span className="text-[var(--text-3)]">W</span>{" "}
+                <span className="text-[var(--loss)]">{lostCount}</span>
+                <span className="text-[var(--text-3)]">L</span>
+              </p>
+              <dl className="mt-4 space-y-1.5 text-xs">
+                <div className="flex justify-between border-t border-[var(--line)] pt-1.5">
+                  <dt className="text-[var(--text-2)]">staked</dt>
+                  <dd>{staked.toFixed(2)} tUSDC</dd>
+                </div>
+                <div className="flex justify-between border-t border-[var(--line)] pt-1.5">
+                  <dt className="text-[var(--text-2)]">returned</dt>
+                  <dd>{returned.toFixed(2)} tUSDC</dd>
+                </div>
+                <div className="flex justify-between border-t border-[var(--line)] pt-1.5">
+                  <dt className="text-[var(--text-2)]">open</dt>
+                  <dd>{openCount}</dd>
+                </div>
+              </dl>
+              <button
+                onClick={settle}
+                disabled={settling || openCount === 0}
+                className="mt-5 h-11 w-full border border-[var(--line-2)] text-xs font-bold uppercase tracking-[0.18em] transition-colors duration-150 hover:bg-[var(--surface-2)] disabled:opacity-40"
+              >
+                {settling ? "Checking the chain…" : `Settle ${openCount} open`}
+              </button>
+              <p className="mt-2 text-[11px] leading-relaxed text-[var(--text-2)]">
+                Checks each open card against the market&apos;s onchain resolution and flips it.
+              </p>
+            </div>
+          </div>
+        </section>
 
-        {flash?.ok && (
-          <p className="mt-6 text-xs text-[var(--ink-muted)]">
-            Fill confirmed · receipt printed ·{" "}
-            <a href={EXPLORER + flash.tx} target="_blank" rel="noreferrer" className="text-[var(--brass)] underline underline-offset-4">
-              view tx {short(flash.tx, 10, 6)}
-            </a>
-          </p>
-        )}
-
-        {/* ── Live desk ────────────────────────────────────────────── */}
-        <section className="mt-10">
-          <div className="mb-2 flex items-baseline justify-between">
-            <h2 className="text-xs font-bold uppercase tracking-[0.22em] text-[var(--ink-muted)]">Live desk</h2>
-            <span className="text-[11px] text-[var(--ink-faint)]">soonest expiry first · YES side · 1 tUSDC</span>
+        {/* ── live desk: price before you stake ─────────────────────── */}
+        <section className="mt-12">
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <h2 className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--text-3)]">
+              01 / Live desk
+            </h2>
+            <span className="text-[11px] text-[var(--text-2)]">
+              soonest expiry first · YES side · 1 tUSDC · IOC
+            </span>
           </div>
 
-          {markets === null && !marketsError && (
-            <ul className="divide-y divide-[var(--ink-line)] border-y border-[var(--ink-line)]">
-              {[0, 1, 2].map((i) => (
-                <li key={i} className="flex items-center justify-between gap-4 py-4">
-                  <div className="flex-1 space-y-2">
+          {desk === null && conn === "up" && (
+            <ul className="divide-y divide-[var(--line)] border-y border-[var(--line)]">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <li key={i} className="flex items-center justify-between gap-4 py-3.5">
+                  <div className="min-w-0 flex-1 space-y-2">
                     <div className="skeleton h-4 w-3/4" />
-                    <div className="skeleton h-3 w-1/4" />
+                    <div className="skeleton h-3 w-1/3" />
                   </div>
-                  <div className="skeleton h-8 w-32" />
+                  <div className="skeleton h-11 w-28" />
                 </li>
               ))}
             </ul>
           )}
 
-          {marketsError && (
-            <div className="border-y border-[var(--ink-line)] py-6 text-sm text-[var(--ink-muted)]">
-              {marketsError} ·{" "}
-              <button onClick={refresh} className="text-[var(--brass)] underline underline-offset-4">Retry</button>
-            </div>
-          )}
-
-          {markets !== null && markets.length === 0 && !marketsError && (
-            <div className="border-y border-[var(--ink-line)] py-6 text-sm text-[var(--ink-muted)]">
+          {desk !== null && desk.length === 0 && (
+            <div className="border-y border-[var(--line)] py-6 text-sm text-[var(--text-2)]">
               No markets past the 2 minute mark right now. The venue rolls new windows continuously.
             </div>
           )}
 
-          {markets !== null && markets.length > 0 && (
-            <ul className="divide-y divide-[var(--ink-line)] border-y border-[var(--ink-line)]">
-              {markets.slice(0, 8).map((m) => (
-                <li
-                  key={m.marketId}
-                  className="group flex items-center justify-between gap-4 py-3.5 transition-colors duration-150 hover:bg-[var(--ink-800)]"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm text-[var(--ink-text)]">{m.question}</p>
-                    <p className="mt-0.5 text-xs tabular-nums text-[var(--ink-faint)]">
-                      closes in <span className={m.secsLeft < 300 ? "text-[var(--stamp-loss)]" : "text-[var(--ink-muted)]"}>{fmtSecs(m.secsLeft)}</span>
-                      {" · "}
-                      {short(m.marketId, 10, 4)}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => bet(m)}
-                    disabled={betting !== null}
-                    className="h-11 shrink-0 border border-[var(--brass-deep)] bg-[var(--brass)] px-4 text-xs font-bold uppercase tracking-wider text-[var(--ink-900)] transition-all duration-150 hover:brightness-110 active:scale-[0.96] disabled:opacity-40"
+          {desk !== null && desk.length > 0 && (
+            <ul className="divide-y divide-[var(--line)] border-y border-[var(--line)]">
+              {desk.map((m) => {
+                const secsLeft = Math.max(0, m.expiry - now / 1000);
+                const closing = secsLeft < 300;
+                const held = heldIds.has(m.marketId);
+                return (
+                  <li
+                    key={m.marketId}
+                    className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3.5 transition-colors duration-150 hover:bg-[var(--surface)] sm:flex-nowrap"
                   >
-                    {betting === m.marketId ? "Staking…" : "Stake 1 · YES"}
-                  </button>
-                </li>
-              ))}
+                    <div className="min-w-0 flex-1 basis-56">
+                      <p className="flex items-center gap-2 truncate text-sm">
+                        {held && (
+                          <span
+                            title="you hold a receipt on this market"
+                            className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--win)]"
+                          />
+                        )}
+                        <span className="truncate">{m.question}</span>
+                      </p>
+                      <p className="mt-0.5 text-xs text-[var(--text-2)]">
+                        <PriceTag price={m.price} />
+                        <span className="text-[var(--text-3)]"> · </span>
+                        <span>
+                          {assetOf(m.question)} · closes {clock(m.expiry * 1000)}
+                        </span>
+                        <span className={closing ? "text-[var(--text)]" : "text-[var(--text-3)]"}>
+                          {" · "}
+                          {closing ? "CLOSING " : ""}
+                          {fmtSecs(secsLeft)}
+                        </span>
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => bet(m)}
+                      disabled={betting !== null}
+                      aria-label={`Stake 1 tUSDC on YES: ${m.question}`}
+                      className="h-11 shrink-0 border border-[var(--line-2)] bg-[var(--text)] px-4 text-xs font-bold uppercase tracking-[0.14em] text-[var(--bg)] transition-all duration-150 hover:bg-[var(--text-2)] active:scale-[0.96] disabled:opacity-40"
+                    >
+                      {betting === m.marketId ? "Staking…" : "Stake 1 · YES"}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
 
-        {/* ── Receipts ─────────────────────────────────────────────── */}
-        <section className="mt-14">
-          <div className="mb-4 flex items-baseline justify-between">
-            <h2 className="text-xs font-bold uppercase tracking-[0.22em] text-[var(--ink-muted)]">Receipts</h2>
-            <button
-              onClick={settle}
-              disabled={settling || openCount === 0}
-              className="h-9 border border-[var(--ink-line)] px-3 text-xs text-[var(--ink-muted)] transition-colors duration-150 hover:border-[var(--ink-faint)] hover:text-[var(--ink-text)] disabled:opacity-40 disabled:hover:border-[var(--ink-line)] disabled:hover:text-[var(--ink-muted)]"
-              title={openCount === 0 ? "Nothing open to settle" : "Check each OPEN receipt against the chain"}
-            >
-              {settling ? "Checking the chain…" : "Settle against chain"}
-            </button>
+        {/* ── verdict cards ─────────────────────────────────────────── */}
+        <section className="mt-12">
+          <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <h2 className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--text-3)]">
+              02 / Verdict cards
+            </h2>
+            <span className="text-[11px] text-[var(--text-2)]">
+              {receipts.length} printed · every line carries its source
+            </span>
           </div>
 
           {receipts.length === 0 ? (
-            <div className="border border-dashed border-[var(--ink-line)] px-4 py-8 text-center text-sm text-[var(--ink-muted)]">
-              No receipts yet. Stake on a live market above and the first one prints here.
+            <div className="border border-dashed border-[var(--line)] px-4 py-8 text-center text-sm text-[var(--text-2)]">
+              Nothing printed yet. One stake above and the first card lands in the hero band.
             </div>
           ) : (
-            <ul className="grid gap-x-6 gap-y-8 sm:grid-cols-2">
-              {receipts.slice(0, 6).map((r, i) => (
-                <li key={r.id} className="enter" style={{ animationDelay: `${Math.min(i * 50, 300)}ms` }}>
-                  <article className="receipt px-5 pt-4">
-                    {/* serial + clock */}
-                    <div className="flex items-baseline justify-between text-[10px] tracking-wider text-[var(--paper-muted)]">
-                      <span>RCPT {r.id.slice(2, 14).toUpperCase()}</span>
-                      <span>{clock(r.placedAt)}</span>
-                    </div>
-                    {/* stamp sits on its own line, never over text */}
-                    <div className="mt-2 flex items-start justify-between gap-3">
-                      <h3 className="text-[13px] font-bold leading-snug text-[var(--paper-ink)] text-balance">
-                        {r.question || r.symbol}
-                      </h3>
-                      <span className={`stamp shrink-0 text-[11px] ${STAMP_STYLE[r.status]}`}>{r.status}</span>
-                    </div>
-                    {/* ledger lines */}
-                    <dl className="mt-3 space-y-1 text-[11px] tabular-nums">
-                      <div className="flex justify-between border-b border-dotted border-[var(--paper-edge)] pb-1">
-                        <dt className="text-[var(--paper-muted)]">ENTRY</dt>
-                        <dd className="text-[var(--paper-ink)]">{r.filled} YES @ {r.price.toFixed(3)}</dd>
-                      </div>
-                      <div className="flex justify-between border-b border-dotted border-[var(--paper-edge)] pb-1">
-                        <dt className="text-[var(--paper-muted)]">STAKED</dt>
-                        <dd className="text-[var(--paper-ink)]">{(r.filled * r.price).toFixed(2)} tUSDC</dd>
-                      </div>
-                      {r.payout !== null && (
-                        <div className="flex justify-between border-b border-dotted border-[var(--paper-edge)] pb-1">
-                          <dt className="text-[var(--paper-muted)]">RETURNED</dt>
-                          <dd className="text-[var(--paper-ink)]">{r.payout.toFixed(2)} tUSDC</dd>
-                        </div>
-                      )}
-                      <div className="flex justify-between pt-1">
-                        <dt className="text-[var(--paper-muted)]">TX</dt>
-                        <dd>
-                          <a
-                            href={EXPLORER + r.txHash}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[var(--paper-ink)] underline decoration-dotted underline-offset-2 hover:text-[var(--brass-deep)]"
-                          >
-                            {short(r.txHash, 10, 6)}
-                          </a>
-                        </dd>
-                      </div>
-                    </dl>
-                    <div className="barcode mt-3" />
-                    <p className="mt-1.5 text-center text-[9px] tracking-[0.3em] text-[var(--paper-muted)]">
-                      SETTLED BY THE CHAIN · NOT THE DESK
-                    </p>
-                  </article>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="grid gap-5 sm:grid-cols-2">
+                {receipts.slice(1, 13).map((r, i) => (
+                  <li key={r.id} className="enter" style={{ animationDelay: `${Math.min(i * 40, 280)}ms` }}>
+                    <VerdictCard r={r} />
+                  </li>
+                ))}
+              </ul>
+              {receipts.length > 13 && (
+                <p className="mt-3 text-xs text-[var(--text-2)]">
+                  {receipts.length - 13} earlier cards in the desk log.
+                </p>
+              )}
+            </>
           )}
         </section>
 
-        {/* ── Board ────────────────────────────────────────────────── */}
-        <section className="mt-16">
-          <h2 className="mb-2 text-xs font-bold uppercase tracking-[0.22em] text-[var(--ink-muted)]">
-            Board · settled truth
+        {/* ── board ─────────────────────────────────────────────────── */}
+        <section className="mt-12">
+          <h2 className="mb-2 text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--text-3)]">
+            03 / Board · settled truth only
           </h2>
-          <ul className="divide-y divide-[var(--ink-line)] border-y border-[var(--ink-line)]">
+          <ul className="divide-y divide-[var(--line)] border-y border-[var(--line)]">
             {board.length === 0 && (
-              <li className="py-6 text-sm text-[var(--ink-muted)]">
-                Nothing settled yet. Settle an open receipt to enter the board.
+              <li className="py-6 text-sm text-[var(--text-2)]">
+                Nothing settled yet. Settle an open card to enter the board.
               </li>
             )}
             {board.map((row, i) => (
-              <li key={row.wallet} className="flex items-center justify-between px-1 py-3.5 text-sm tabular-nums">
-                <span className="text-[var(--ink-text)]">
-                  <span className={`mr-3 text-xs ${i === 0 ? "text-[var(--brass)]" : "text-[var(--ink-faint)]"}`}>
+              <li key={row.wallet} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 py-3.5 text-sm">
+                <span>
+                  <span className={`mr-3 text-xs ${i === 0 ? "text-[var(--text)]" : "text-[var(--text-3)]"}`}>
                     {String(i + 1).padStart(2, "0")}
                   </span>
                   {short(row.wallet, 10, 6)}
                 </span>
-                <span className="text-xs">
-                  <span className="text-[var(--ink-muted)]">{row.bets} calls</span>
-                  <span className="text-[var(--ink-faint)]"> · </span>
-                  <span className="text-[var(--stamp-win)]">{row.won}W</span>
-                  <span className="text-[var(--ink-faint)]"> </span>
-                  <span className="text-[var(--stamp-loss)]">{row.lost}L</span>
-                  <span className="text-[var(--ink-faint)]"> · </span>
-                  <span className="text-[var(--ink-muted)]">{row.returned.toFixed(2)} returned</span>
+                <span className="text-xs text-[var(--text-2)]">
+                  {row.bets} calls ·{" "}
+                  <span className="text-[var(--win)]">{row.won}W</span>{" "}
+                  <span className="text-[var(--loss)]">{row.lost}L</span> · {row.returned.toFixed(2)} returned
                 </span>
               </li>
             ))}
           </ul>
         </section>
 
-        {/* ── Footer ───────────────────────────────────────────────── */}
-        <footer className="mt-16 border-t border-[var(--ink-line)] pt-6 text-xs text-[var(--ink-faint)]">
-          <p className="max-w-[70ch] leading-relaxed">
-            Somnia Shannon testnet · chain 50312. Orders are IOC on the YES book. Receipts live in
-            the desk's own log; the chain is the source of truth.
+        <footer className="mt-14 border-t border-[var(--line)] pt-6 text-xs text-[var(--text-2)]">
+          <p className="max-w-[74ch] leading-relaxed">
+            Somnia Shannon testnet · chain 50312. Orders are IOC limit crosses of the YES book,
+            sized 1 tUSDC. Verdict cards live in the desk&apos;s own log; the chain is the source of
+            truth for every verdict.
           </p>
           <p className="mt-2">
             Tally · built by{" "}
@@ -365,7 +456,7 @@ export default function Home() {
               href="https://x.com/a_raphie"
               target="_blank"
               rel="noreferrer"
-              className="text-[var(--ink-muted)] underline underline-offset-4 transition-colors duration-150 hover:text-[var(--brass)]"
+              className="underline underline-offset-4 transition-colors duration-150 hover:text-[var(--text)]"
             >
               Raphie
             </a>
@@ -374,5 +465,73 @@ export default function Home() {
         </footer>
       </div>
     </main>
+  );
+}
+
+/* ── Verdict card: the product ─────────────────────────────────────────── */
+function VerdictCard({ r, big = false }: { r: Receipt; big?: boolean }) {
+  const staked = r.filled * r.price;
+  return (
+    <article className={`enter border border-[var(--line)] bg-[var(--surface)] ${big ? "mt-4 p-5" : "p-4"}`}>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[10px] uppercase tracking-[0.2em] text-[var(--text-3)]">
+        <span>RCPT {r.id.slice(2, 14).toUpperCase()}</span>
+        <span className={`chip ${CHIP[r.status]}`}>{r.status}</span>
+        <span>{clock(r.placedAt)}</span>
+      </div>
+      <h3 className={`mt-2.5 font-bold leading-snug text-balance ${big ? "text-base" : "text-sm"}`}>
+        {r.question || r.symbol}
+      </h3>
+      <dl className="mt-3 space-y-1.5 text-xs">
+        <div className="flex justify-between border-t border-[var(--line)] pt-1.5">
+          <dt className="text-[var(--text-2)]">entry</dt>
+          <dd>
+            {r.filled} YES @ {r.price.toFixed(3)}
+          </dd>
+        </div>
+        <div className="flex justify-between border-t border-[var(--line)] pt-1.5">
+          <dt className="text-[var(--text-2)]">staked</dt>
+          <dd>{staked.toFixed(2)} tUSDC</dd>
+        </div>
+        {r.payout !== null && (
+          <div className="flex justify-between border-t border-[var(--line)] pt-1.5">
+            <dt className="text-[var(--text-2)]">returned</dt>
+            <dd className={r.status === "WON" ? "text-[var(--win)]" : r.status === "LOST" ? "text-[var(--loss)]" : ""}>
+              {r.payout.toFixed(2)} tUSDC
+            </dd>
+          </div>
+        )}
+      </dl>
+      {/* the signature: every card opens its proof */}
+      <details className="group mt-3 border-t border-[var(--line)] pt-2">
+        <summary className="cursor-pointer list-none text-[10px] uppercase tracking-[0.2em] text-[var(--text-3)] transition-colors duration-150 hover:text-[var(--text)]">
+          Provenance <span className="text-[var(--text-3)] group-open:hidden">+</span>
+          <span className="hidden text-[var(--text-3)] group-open:inline">-</span>
+        </summary>
+        <div className="mt-2 space-y-1 text-[11px] text-[var(--text-2)]">
+          <p className="flex justify-between gap-3">
+            <span className="text-[var(--text-3)]">fill tx</span>
+            <a
+              href={EXPLORER + r.txHash}
+              target="_blank"
+              rel="noreferrer"
+              className="underline decoration-dotted underline-offset-2 hover:text-[var(--text)]"
+            >
+              {short(r.txHash, 12, 8)}
+            </a>
+          </p>
+          <p className="flex justify-between gap-3">
+            <span className="text-[var(--text-3)]">market</span>
+            <span className="truncate">{short(r.marketId, 12, 6)}</span>
+          </p>
+          <p className="flex justify-between gap-3">
+            <span className="text-[var(--text-3)]">wallet</span>
+            <span>{short(r.wallet, 10, 6)}</span>
+          </p>
+          <p className="pt-1 text-[10px] uppercase tracking-[0.18em] text-[var(--text-3)]">
+            verdict set by chain resolution · not by this desk
+          </p>
+        </div>
+      </details>
+    </article>
   );
 }
