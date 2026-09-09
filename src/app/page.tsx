@@ -1,537 +1,212 @@
-"use client";
+import Link from "next/link";
+import { readReceipts } from "@/lib/store";
+import { VerdictCard } from "./_components/verdict-card";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+export const dynamic = "force-dynamic";
 
-type Market = {
-  marketId: string;
-  question: string;
-  secsLeft: number;
-  expiry: number;
-  price: number | null;
-  poolAddress: string;
-};
-
-type Receipt = {
-  id: string;
-  txHash: string;
-  marketId: string;
-  question: string;
-  symbol: string;
-  price: number;
-  filled: number;
-  placedAt: number;
-  wallet: string;
-  status: "OPEN" | "WON" | "LOST" | "VOID";
-  payout: number | null;
-  settledAt: number | null;
-};
-
-type BoardRow = {
-  wallet: string;
-  bets: number;
-  staked: number;
-  won: number;
-  lost: number;
-  returned: number;
-};
-
-type Conn = "up" | "down";
-
-const EXPLORER = "https://shannon-explorer.somnia.network/tx/";
-
-const CHIP: Record<Receipt["status"], string> = {
-  OPEN: "text-[var(--open)]",
-  WON: "text-[var(--win)]",
-  LOST: "text-[var(--loss)]",
-  VOID: "text-[var(--void)]",
-};
-
-function fmtSecs(s: number): string {
-  const t = Math.max(0, Math.floor(s));
-  if (t <= 0) return "closing";
-  if (t < 3600) return `${Math.floor(t / 60)}m ${String(t % 60).padStart(2, "0")}s`;
-  if (t < 86400) return `${Math.floor(t / 3600)}h ${Math.floor((t % 3600) / 60)}m`;
-  return `${Math.floor(t / 86400)}d ${Math.floor((t % 86400) / 3600)}h`;
-}
-
-function clock(ts: number): string {
-  return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
-}
-
-function short(a: string, head = 8, tail = 4): string {
-  return a.length > head + tail + 2 ? `${a.slice(0, head)}···${a.slice(-tail)}` : a;
-}
-
-function assetOf(q: string): string {
-  const m = q.match(/^(BTC|ETH|SOL|SOMI)\b/i);
-  return m ? m[1].toUpperCase() : "EV";
-}
-
-function PriceTag({ price }: { price: number | null }) {
-  if (price === null || Number.isNaN(price)) return <span className="text-[var(--text-3)]">no book</span>;
+function Section({ n, label, children }: { n: string; label: string; children: React.ReactNode }) {
   return (
-    <span className="tabular-nums">
-      <span className="text-[var(--text)]">YES {price.toFixed(2)}</span>
-      <span className="text-[var(--text-3)]"> · pays 1.00</span>
-    </span>
+    <section className="mt-20">
+      <h2 className="mb-5 flex items-baseline gap-3 text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--text-3)]">
+        <span className="text-[var(--text-2)]">{n} /</span> {label}
+      </h2>
+      {children}
+    </section>
   );
 }
 
-export default function Home() {
-  const [markets, setMarkets] = useState<Market[] | null>(null);
-  const [receipts, setReceipts] = useState<Receipt[]>([]);
-  const [board, setBoard] = useState<BoardRow[]>([]);
-  const [betting, setBetting] = useState<string | null>(null);
-  const [settling, setSettling] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [flash, setFlash] = useState<{ tx: string } | null>(null);
-  const [conn, setConn] = useState<Conn>("up");
-  const [now, setNow] = useState(() => Date.now());
-  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // the desk ticks locally between polls; nothing freezes for 15s
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  const refresh = useCallback(async () => {
-    try {
-      const [m, r, b] = await Promise.all([
-        fetch("/api/markets").then((x) => x.json()),
-        fetch("/api/receipts").then((x) => x.json()),
-        fetch("/api/board").then((x) => x.json()),
-      ]);
-      // partial outage: keep the last good state, never wipe history with {error}
-      if (m.error && r.error && b.error) {
-        setConn("down");
-        setError("tally server unreachable · showing last known state");
-        return;
-      }
-      if (!m.error) setMarkets(m.markets ?? []);
-      if (!r.error) setReceipts(r.receipts ?? []);
-      if (!b.error) setBoard(b.board ?? []);
-      setConn("up");
-      setError(null);
-    } catch {
-      setConn("down");
-      setError("tally server unreachable · showing last known state");
-    }
-  }, []);
-
-  useEffect(() => {
-    refresh();
-    const t = setInterval(refresh, 15000);
-    return () => clearInterval(t);
-  }, [refresh]);
-
-  useEffect(() => {
-    return () => {
-      if (flashTimer.current) clearTimeout(flashTimer.current);
-    };
-  }, []);
-
-  async function bet(m: Market) {
-    setBetting(m.marketId);
-    setError(null);
-    try {
-      const res = await fetch("/api/bet", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ marketId: m.marketId, amount: 1, question: m.question }),
-      });
-      const json = await res.json();
-      if (json.error) throw new Error(json.error);
-      setFlash({ tx: json.receipt?.txHash ?? "" });
-      if (flashTimer.current) clearTimeout(flashTimer.current);
-      flashTimer.current = setTimeout(() => setFlash(null), 6000);
-      await refresh();
-    } catch (e) {
-      setError(String((e as Error).message ?? e));
-    } finally {
-      setBetting(null);
-    }
-  }
-
-  async function settle() {
-    setSettling(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/settle", { method: "POST" });
-      const json = await res.json();
-      if (json.error) throw new Error(json.error);
-      await refresh();
-    } catch (e) {
-      setError(String((e as Error).message ?? e));
-    } finally {
-      setSettling(false);
-    }
-  }
-
-  const openCount = receipts.filter((r) => r.status === "OPEN").length;
-  const wonCount = receipts.filter((r) => r.status === "WON").length;
-  const lostCount = receipts.filter((r) => r.status === "LOST").length;
+export default async function Landing() {
+  const receipts = await readReceipts();
+  const won = receipts.filter((r) => r.status === "WON").length;
+  const lost = receipts.filter((r) => r.status === "LOST").length;
   const returned = receipts.reduce((s, r) => s + (r.payout ?? 0), 0);
-  const staked = receipts.reduce((s, r) => s + r.filled * r.price, 0);
-  const heldIds = new Set(receipts.map((r) => r.marketId));
-  const latest = receipts[0];
-  const desk = markets === null ? null : markets.slice(0, 5);
+  const open = receipts.filter((r) => r.status === "OPEN").length;
+  const proof = receipts.slice(0, 2);
 
   return (
-    <main className="min-h-screen">
-      <div className="mx-auto max-w-5xl px-5 pb-16">
-        {/* ── masthead + status strip: chrome never lies ────────────── */}
-        <header className="pt-10">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <h1 className="text-3xl font-bold tracking-[0.08em]">
-              TALLY<span className="text-[var(--text-3)]">_</span>
-            </h1>
-            <p className="text-[10px] uppercase tracking-[0.28em] text-[var(--text-3)]">
-              Settlement instrument
-            </p>
-          </div>
-          <div
-            role="status"
-            aria-live="polite"
-            className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-y border-[var(--line)] py-2 text-[10px] uppercase tracking-[0.22em]"
-          >
-            <span className="flex items-center gap-2">
-              <span
-                className={`inline-block h-1.5 w-1.5 rounded-full ${conn === "up" ? "bg-[var(--win)]" : "bg-[var(--text-3)]"}`}
-              />
-              <span className={conn === "up" ? "text-[var(--win)]" : "text-[var(--text-2)]"}>
-                {conn === "up" ? "Connected" : "Reconnecting"}
-              </span>
-            </span>
-            <span className="text-[var(--text-3)]">·</span>
-            <span className="text-[var(--text-2)]">Somnia Shannon 50312</span>
-            <span className="text-[var(--text-3)]">·</span>
-            <span className="text-[var(--text-2)]">DreamDEX Event Contracts</span>
-            <span className="text-[var(--text-3)]">·</span>
-            <span className="text-[var(--text-3)]">Testnet</span>
-          </div>
-          <p className="mt-5 max-w-[68ch] text-sm leading-relaxed text-[var(--text-2)] text-pretty">
-            The desk stakes 1 tUSDC YES on live prediction markets. Every fill prints a verdict
-            card carrying its real transaction; when the market finalizes, the chain, not the desk,
-            flips it to WON or LOST. Every number shows its source.
+    <main className="mx-auto max-w-5xl px-5 pb-16">
+      {/* ── hero ─────────────────────────────────────────────────────── */}
+      <header className="pt-14">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+          <p className="text-[10px] uppercase tracking-[0.28em] text-[var(--text-3)]">
+            Somnia Shannon · DreamDEX Event Contracts · Testnet
           </p>
-        </header>
-
-        {/* alerts */}
-        <div aria-live="polite">
-          {error && (
-            <div
-              role="alert"
-              className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border border-[var(--line-2)] bg-[var(--surface)] px-4 py-3 text-sm"
-            >
-              <span>{error}</span>
-              <button onClick={refresh} className="underline underline-offset-4 hover:text-[var(--text)]">
-                Retry
-              </button>
-            </div>
-          )}
-          {flash && (
-            <p className="mt-5 text-xs text-[var(--text-2)]">
-              Fill confirmed · verdict card printed ·{" "}
-              <a
-                href={EXPLORER + flash.tx}
-                target="_blank"
-                rel="noreferrer"
-                className="underline underline-offset-4 hover:text-[var(--text)]"
-              >
-                tx {short(flash.tx, 10, 6)}
-              </a>
-            </p>
-          )}
+          <Link
+            href="/desk"
+            className="border border-[var(--line-2)] px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] text-[var(--text-2)] transition-colors duration-150 hover:bg-[var(--surface)] hover:text-[var(--text)]"
+          >
+            Desk →
+          </Link>
         </div>
+        <h1 className="mt-10 max-w-[20ch] text-5xl font-bold leading-[1.05] tracking-tight text-balance sm:text-6xl">
+          Every prediction call leaves a receipt.
+        </h1>
+        <p className="mt-6 max-w-[62ch] text-sm leading-relaxed text-[var(--text-2)] text-pretty">
+          Tally is a settlement instrument for DreamDEX Event Contracts. The desk stakes 1 tUSDC
+          YES on live markets. Every fill prints a verdict card carrying its real transaction.
+          When the market finalizes onchain, the card flips to WON or LOST with the payout math
+          attached. The desk never marks its own homework.
+        </p>
+        <div className="mt-8 flex flex-wrap items-center gap-4">
+          <Link
+            href="/desk"
+            className="h-12 border border-[var(--line-2)] bg-[var(--text)] px-6 text-xs font-bold uppercase tracking-[0.18em] leading-[3rem] text-[var(--bg)] transition-all duration-150 hover:bg-[var(--text-2)] active:scale-[0.98]"
+          >
+            Enter the desk
+          </Link>
+          <a
+            href="#mechanism"
+            className="text-xs uppercase tracking-[0.18em] text-[var(--text-2)] underline decoration-dotted underline-offset-4 transition-colors duration-150 hover:text-[var(--text)]"
+          >
+            Read the mechanics
+          </a>
+        </div>
+        <p className="mt-6 text-xs tabular-nums text-[var(--text-2)]">
+          live on this deployment: {receipts.length} cards printed · {won}W {lost}L settled ·{" "}
+          {returned.toFixed(2)} tUSDC returned · {open} open
+        </p>
+      </header>
 
-        {/* ── hero band: proof before actions ───────────────────────── */}
-        <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_320px]">
-          <div className="border border-[var(--line)] bg-[var(--surface)] p-5">
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--text-3)]">
-                Latest verdict card
-              </h2>
-              <span className="text-[10px] text-[var(--text-3)]">the product is the card</span>
-            </div>
-            {latest ? (
-              <VerdictCard r={latest} big />
-            ) : (
-              <div className="mt-4 border border-dashed border-[var(--line)] px-4 py-8 text-sm text-[var(--text-2)]">
-                No verdict cards yet. Stake on the desk below and the first one prints here with its
-                real transaction.
-              </div>
-            )}
-          </div>
-          <div className="flex flex-col gap-6">
-            <div className="border border-[var(--line)] bg-[var(--surface)] p-5">
-              <h2 className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--text-3)]">
-                Settled truth
-              </h2>
-              <p className="mt-3 text-5xl font-bold tracking-tight">
-                {wonCount}
-                <span className="text-[var(--text-3)]">W</span>{" "}
-                <span className="text-[var(--loss)]">{lostCount}</span>
-                <span className="text-[var(--text-3)]">L</span>
-              </p>
-              <dl className="mt-4 space-y-1.5 text-xs">
-                <div className="flex justify-between border-t border-[var(--line)] pt-1.5">
-                  <dt className="text-[var(--text-2)]">staked</dt>
-                  <dd>{staked.toFixed(2)} tUSDC</dd>
-                </div>
-                <div className="flex justify-between border-t border-[var(--line)] pt-1.5">
-                  <dt className="text-[var(--text-2)]">returned</dt>
-                  <dd>{returned.toFixed(2)} tUSDC</dd>
-                </div>
-                <div className="flex justify-between border-t border-[var(--line)] pt-1.5">
-                  <dt className="text-[var(--text-2)]">open</dt>
-                  <dd>{openCount}</dd>
-                </div>
-              </dl>
-              <button
-                onClick={settle}
-                disabled={settling || openCount === 0}
-                className="mt-5 h-11 w-full border border-[var(--line-2)] text-xs font-bold uppercase tracking-[0.18em] transition-colors duration-150 hover:bg-[var(--surface-2)] disabled:opacity-40"
-              >
-                {settling ? "Checking the chain…" : `Settle ${openCount} open`}
-              </button>
-              <p className="mt-2 text-[11px] leading-relaxed text-[var(--text-2)]">
-                Checks each open card against the market&apos;s onchain resolution and flips it.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* ── live desk: price before you stake ─────────────────────── */}
-        <section className="mt-12">
-          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <h2 className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--text-3)]">
-              01 / Live desk
-            </h2>
-            <span className="text-[11px] text-[var(--text-2)]">
-              soonest expiry first · YES side · 1 tUSDC · IOC
-            </span>
-          </div>
-
-          {desk === null && conn === "up" && (
-            <ul className="divide-y divide-[var(--line)] border-y border-[var(--line)]">
-              {[0, 1, 2, 3, 4].map((i) => (
-                <li key={i} className="flex items-center justify-between gap-4 py-3.5">
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <div className="skeleton h-4 w-3/4" />
-                    <div className="skeleton h-3 w-1/3" />
-                  </div>
-                  <div className="skeleton h-11 w-28" />
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {desk !== null && desk.length === 0 && (
-            <div className="border-y border-[var(--line)] py-6 text-sm text-[var(--text-2)]">
-              No markets past the 2 minute mark right now. The venue rolls new windows continuously.
-            </div>
-          )}
-
-          {desk !== null && desk.length > 0 && (
-            <ul className="divide-y divide-[var(--line)] border-y border-[var(--line)]">
-              {desk.map((m) => {
-                const secsLeft = Math.max(0, m.expiry - now / 1000);
-                const closing = secsLeft < 300;
-                const held = heldIds.has(m.marketId);
-                return (
-                  <li
-                    key={m.marketId}
-                    className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3.5 transition-colors duration-150 hover:bg-[var(--surface)] sm:flex-nowrap"
-                  >
-                    <div className="min-w-0 flex-1 basis-56">
-                      <p className="flex items-center gap-2 truncate text-sm">
-                        {held && (
-                          <span
-                            title="you hold a receipt on this market"
-                            className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--win)]"
-                          />
-                        )}
-                        <span className="truncate">{m.question}</span>
-                      </p>
-                      <p className="mt-0.5 text-xs text-[var(--text-2)]">
-                        <PriceTag price={m.price} />
-                        <span className="text-[var(--text-3)]"> · </span>
-                        <span>
-                          {assetOf(m.question)} · closes {clock(m.expiry * 1000)}
-                        </span>
-                        <span className={closing ? "text-[var(--text)]" : "text-[var(--text-3)]"}>
-                          {" · "}
-                          {closing ? "CLOSING " : ""}
-                          {fmtSecs(secsLeft)}
-                        </span>
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => bet(m)}
-                      disabled={betting !== null}
-                      aria-label={`Stake 1 tUSDC on YES: ${m.question}`}
-                      className="h-11 shrink-0 border border-[var(--line-2)] bg-[var(--text)] px-4 text-xs font-bold uppercase tracking-[0.14em] text-[var(--bg)] transition-all duration-150 hover:bg-[var(--text-2)] active:scale-[0.96] disabled:opacity-40"
-                    >
-                      {betting === m.marketId ? "Staking…" : "Stake 1 · YES"}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-
-        {/* ── verdict cards ─────────────────────────────────────────── */}
-        <section className="mt-12">
-          <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <h2 className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--text-3)]">
-              02 / Verdict cards
-            </h2>
-            <span className="text-[11px] text-[var(--text-2)]">
-              {receipts.length} printed · every line carries its source
-            </span>
-          </div>
-
-          {receipts.length === 0 ? (
-            <div className="border border-dashed border-[var(--line)] px-4 py-8 text-center text-sm text-[var(--text-2)]">
-              Nothing printed yet. One stake above and the first card lands in the hero band.
-            </div>
-          ) : (
-            <>
-              <ul className="grid gap-5 sm:grid-cols-2">
-                {receipts.slice(1, 13).map((r, i) => (
-                  <li key={r.id} className="enter" style={{ animationDelay: `${Math.min(i * 40, 280)}ms` }}>
-                    <VerdictCard r={r} />
-                  </li>
-                ))}
-              </ul>
-              {receipts.length > 13 && (
-                <p className="mt-3 text-xs text-[var(--text-2)]">
-                  {receipts.length - 13} earlier cards in the desk log.
-                </p>
-              )}
-            </>
-          )}
-        </section>
-
-        {/* ── board ─────────────────────────────────────────────────── */}
-        <section className="mt-12">
-          <h2 className="mb-2 text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--text-3)]">
-            03 / Board · settled truth only
+      {/* ── hero visual: the live cards, not screenshots ─────────────── */}
+      <section className="mt-10 border border-[var(--line)] bg-[var(--surface)] p-5">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--text-3)]">
+            Latest verdict cards
           </h2>
-          <ul className="divide-y divide-[var(--line)] border-y border-[var(--line)]">
-            {board.length === 0 && (
-              <li className="py-6 text-sm text-[var(--text-2)]">
-                Nothing settled yet. Settle an open card to enter the board.
-              </li>
-            )}
-            {board.map((row, i) => (
-              <li key={row.wallet} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-1 py-3.5 text-sm">
-                <span>
-                  <span className={`mr-3 text-xs ${i === 0 ? "text-[var(--text)]" : "text-[var(--text-3)]"}`}>
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  {short(row.wallet, 10, 6)}
-                </span>
-                <span className="text-xs text-[var(--text-2)]">
-                  {row.bets} calls ·{" "}
-                  <span className="text-[var(--win)]">{row.won}W</span>{" "}
-                  <span className="text-[var(--loss)]">{row.lost}L</span> · {row.returned.toFixed(2)} returned
-                </span>
+          <span className="text-[10px] text-[var(--text-3)]">rendered live from the desk log</span>
+        </div>
+        {proof.length === 0 ? (
+          <div className="mt-4 border border-dashed border-[var(--line)] px-4 py-8 text-center text-sm text-[var(--text-2)]">
+            No cards yet. The desk prints the first one on its next stake; this panel renders it
+            live.
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-5 sm:grid-cols-2">
+            {proof.map((r) => (
+              <VerdictCard key={r.id} r={r} big />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ── problem ──────────────────────────────────────────────────── */}
+      <Section n="01" label="The problem">
+        <p className="max-w-[64ch] text-lg leading-snug text-[var(--text)] text-balance">
+          Agent track records arrive as screenshots. Screenshots settle nothing: no fill you can
+          open, no resolution you can check, no way to tell a good trader from a good storyteller.
+        </p>
+        <div className="mt-6 grid gap-px border border-[var(--line)] bg-[var(--line)] sm:grid-cols-3">
+          <div className="bg-[var(--surface)] p-5">
+            <p className="text-3xl font-bold tabular-nums">64</p>
+            <p className="mt-1 text-xs leading-relaxed text-[var(--text-2)]">
+              BUIDLs in this hackathon, most of them agents. Judge time per entry: minutes.
+            </p>
+          </div>
+          <div className="bg-[var(--surface)] p-5">
+            <p className="text-3xl font-bold tabular-nums">25%</p>
+            <p className="mt-1 text-xs leading-relaxed text-[var(--text-2)]">
+              of the score is technical implementation. A screenshot cannot carry it.
+            </p>
+          </div>
+          <div className="bg-[var(--surface)] p-5">
+            <p className="text-3xl font-bold tabular-nums">0</p>
+            <p className="mt-1 text-xs leading-relaxed text-[var(--text-2)]">
+              verdicts marked by this desk. The chain resolves; the desk only reads.
+            </p>
+          </div>
+        </div>
+      </Section>
+
+      {/* ── mechanism ────────────────────────────────────────────────── */}
+      <Section n="02" label="Mechanism">
+        <ol className="grid gap-5 sm:grid-cols-3">
+          {[
+            {
+              n: "STAKE",
+              t: "The desk crosses the YES book with an IOC limit, 1 tUSDC, on a live DreamDEX market.",
+            },
+            {
+              n: "PRINT",
+              t: "The fill prints a verdict card: serial, entry, size, price, and the fill transaction.",
+            },
+            {
+              n: "SETTLE",
+              t: "When the market finalizes onchain, the card flips WON or LOST with the payout computed.",
+            },
+          ].map((s) => (
+            <li key={s.n} className="border border-[var(--line)] bg-[var(--surface)] p-5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--text-2)]">
+                {s.n}
+              </p>
+              <p className="mt-3 text-sm leading-relaxed text-[var(--text-2)]">{s.t}</p>
+            </li>
+          ))}
+        </ol>
+        <p className="mt-5 border border-[var(--line)] bg-[var(--bg)] px-4 py-3 text-xs text-[var(--text-2)]">
+          stake → fill → card → finalize → verdict → board
+        </p>
+      </Section>
+
+      {/* ── can / cannot ─────────────────────────────────────────────── */}
+      <Section n="03" label="What it does and does not do">
+        <div className="grid gap-px border border-[var(--line)] bg-[var(--line)] sm:grid-cols-2">
+          <ul className="space-y-3 bg-[var(--surface)] p-5 text-sm">
+            {[
+              "Every card carries its real fill transaction, linked to the explorer",
+              "Settlement is read from the market's onchain resolution",
+              "Provenance opens on every card: tx, market, wallet",
+              "The board ranks by settled outcomes only",
+            ].map((t) => (
+              <li key={t} className="flex gap-3">
+                <span className="text-[var(--win)]">✓</span>
+                <span className="text-[var(--text-2)]">{t}</span>
               </li>
             ))}
           </ul>
-        </section>
+          <ul className="space-y-3 bg-[var(--surface)] p-5 text-sm">
+            {[
+              "No claimed P&L anywhere: only settled math",
+              "No manual verdicts: the desk cannot flip a card by hand",
+              "No mainnet funds: testnet STT and tUSDC only",
+              "No redemption yet: cards settle the math; onchain redeem is next",
+            ].map((t) => (
+              <li key={t} className="flex gap-3">
+                <span className="text-[var(--loss)]">✗</span>
+                <span className="text-[var(--text-2)]">{t}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </Section>
 
-        <footer className="mt-14 border-t border-[var(--line)] pt-6 text-xs text-[var(--text-2)]">
-          <p className="max-w-[74ch] leading-relaxed">
-            Somnia Shannon testnet · chain 50312. Orders are IOC limit crosses of the YES book,
-            sized 1 tUSDC. Verdict cards live in the desk&apos;s own log; the chain is the source of
-            truth for every verdict.
-          </p>
-          <p className="mt-2">
-            Tally · built by{" "}
-            <a
-              href="https://x.com/a_raphie"
-              target="_blank"
-              rel="noreferrer"
-              className="underline underline-offset-4 transition-colors duration-150 hover:text-[var(--text)]"
-            >
-              Raphie
-            </a>
-            {" "}for the Somnia x DreamDEX Event Contracts Hackathon
-          </p>
-        </footer>
-      </div>
+      {/* ── final cta ────────────────────────────────────────────────── */}
+      <section className="mt-20 border border-[var(--line)] bg-[var(--surface)] p-8 text-center">
+        <p className="text-lg text-balance">The desk is live on Somnia Shannon testnet.</p>
+        <Link
+          href="/desk"
+          className="mt-5 inline-block h-12 border border-[var(--line-2)] bg-[var(--text)] px-6 text-xs font-bold uppercase tracking-[0.18em] leading-[3rem] text-[var(--bg)] transition-all duration-150 hover:bg-[var(--text-2)] active:scale-[0.98]"
+        >
+          Enter the desk
+        </Link>
+      </section>
+
+      <footer className="mt-14 border-t border-[var(--line)] pt-6 text-xs text-[var(--text-2)]">
+        <p className="max-w-[74ch] leading-relaxed">
+          Testnet deployment: reads need no wallet; writes are the desk&apos;s own testnet agent.
+          Prize context: Somnia x DreamDEX Event Contracts Hackathon.
+        </p>
+        <p className="mt-2">
+          Tally · built by{" "}
+          <a
+            href="https://x.com/a_raphie"
+            target="_blank"
+            rel="noreferrer"
+            className="underline underline-offset-4 transition-colors duration-150 hover:text-[var(--text)]"
+          >
+            Raphie
+          </a>
+        </p>
+      </footer>
     </main>
-  );
-}
-
-/* ── Verdict card: the product ─────────────────────────────────────────── */
-function VerdictCard({ r, big = false }: { r: Receipt; big?: boolean }) {
-  const staked = r.filled * r.price;
-  return (
-    <article className={`enter border border-[var(--line)] bg-[var(--surface)] ${big ? "mt-4 p-5" : "p-4"}`}>
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[10px] uppercase tracking-[0.2em] text-[var(--text-3)]">
-        <span>RCPT {r.id.slice(2, 14).toUpperCase()}</span>
-        <span className={`chip ${CHIP[r.status]}`}>{r.status}</span>
-        <span>{clock(r.placedAt)}</span>
-      </div>
-      <h3 className={`mt-2.5 font-bold leading-snug text-balance ${big ? "text-base" : "text-sm"}`}>
-        {r.question || r.symbol}
-      </h3>
-      <dl className="mt-3 space-y-1.5 text-xs">
-        <div className="flex justify-between border-t border-[var(--line)] pt-1.5">
-          <dt className="text-[var(--text-2)]">entry</dt>
-          <dd>
-            {r.filled} YES @ {r.price.toFixed(3)}
-          </dd>
-        </div>
-        <div className="flex justify-between border-t border-[var(--line)] pt-1.5">
-          <dt className="text-[var(--text-2)]">staked</dt>
-          <dd>{staked.toFixed(2)} tUSDC</dd>
-        </div>
-        {r.payout !== null && (
-          <div className="flex justify-between border-t border-[var(--line)] pt-1.5">
-            <dt className="text-[var(--text-2)]">returned</dt>
-            <dd className={r.status === "WON" ? "text-[var(--win)]" : r.status === "LOST" ? "text-[var(--loss)]" : ""}>
-              {r.payout.toFixed(2)} tUSDC
-            </dd>
-          </div>
-        )}
-      </dl>
-      {/* the signature: every card opens its proof */}
-      <details className="group mt-3 border-t border-[var(--line)] pt-2">
-        <summary className="cursor-pointer list-none text-[10px] uppercase tracking-[0.2em] text-[var(--text-3)] transition-colors duration-150 hover:text-[var(--text)]">
-          Provenance <span className="text-[var(--text-3)] group-open:hidden">+</span>
-          <span className="hidden text-[var(--text-3)] group-open:inline">-</span>
-        </summary>
-        <div className="mt-2 space-y-1 text-[11px] text-[var(--text-2)]">
-          <p className="flex justify-between gap-3">
-            <span className="text-[var(--text-3)]">fill tx</span>
-            <a
-              href={EXPLORER + r.txHash}
-              target="_blank"
-              rel="noreferrer"
-              className="underline decoration-dotted underline-offset-2 hover:text-[var(--text)]"
-            >
-              {short(r.txHash, 12, 8)}
-            </a>
-          </p>
-          <p className="flex justify-between gap-3">
-            <span className="text-[var(--text-3)]">market</span>
-            <span className="truncate">{short(r.marketId, 12, 6)}</span>
-          </p>
-          <p className="flex justify-between gap-3">
-            <span className="text-[var(--text-3)]">wallet</span>
-            <span>{short(r.wallet, 10, 6)}</span>
-          </p>
-          <p className="pt-1 text-[10px] uppercase tracking-[0.18em] text-[var(--text-3)]">
-            verdict set by chain resolution · not by this desk
-          </p>
-        </div>
-      </details>
-    </article>
   );
 }
