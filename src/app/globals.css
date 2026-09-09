@@ -99,6 +99,16 @@ body {
 .chip-loss { color: var(--loss); border-color: rgba(220, 11, 74, 0.5); background: rgba(220, 11, 74, 0.1); }
 .chip-void { color: var(--void); border-color: var(--line-2); background: var(--surface-2); }
 
+/* fresh-print highlight: the new card announces itself where you clicked */
+@keyframes print-ring {
+  0% { box-shadow: 0 0 0 3px var(--accent); }
+  100% { box-shadow: 0 0 0 0 rgba(110, 110, 237, 0); }
+}
+.print-ring {
+  animation: print-ring 2.4s ease-out 2;
+  border-color: var(--accent) !important;
+}
+
 /* skeletons shaped like the content */
 @keyframes pulse-line {
   0%, 100% { opacity: 1; }

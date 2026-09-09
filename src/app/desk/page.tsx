@@ -122,8 +122,21 @@ export default function Home() {
       if (flashTimer.current) clearTimeout(flashTimer.current);
       flashTimer.current = setTimeout(() => setFlash(null), 6000);
       await refresh();
+      // bring the fresh card to your eyes: the click happened at the desk row,
+      // the proof prints in the hero band
+      requestAnimationFrame(() => {
+        const el = document.querySelector("[data-latest-card]");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.classList.add("print-ring");
+          setTimeout(() => el.classList.remove("print-ring"), 5000);
+        }
+      });
     } catch (e) {
       setError(String((e as Error).message ?? e));
+      requestAnimationFrame(() => {
+        document.querySelector('[role="alert"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
     } finally {
       setBetting(null);
     }
@@ -247,7 +260,9 @@ export default function Home() {
               <span className="text-[10px] text-[var(--text-3)]">the product is the card</span>
             </div>
             {latest ? (
-              <VerdictCard r={latest} big />
+              <div data-latest-card>
+                <VerdictCard r={latest} big />
+              </div>
             ) : (
               <div className="mt-4 border border-dashed border-[var(--line)] px-4 py-8 text-sm text-[var(--text-2)]">
                 No verdict cards yet. Stake on the desk below and the first one prints here with its
