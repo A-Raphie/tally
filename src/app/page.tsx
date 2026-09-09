@@ -33,7 +33,7 @@ export default async function Landing() {
           <span className="text-[var(--accent)]">receipt</span>.
         </h1>
         <p className="mx-auto mt-6 max-w-[52ch] text-pretty text-lg leading-relaxed text-[var(--text-2)]">
-          The desk stakes 1 tUSDC on live DreamDEX markets. Every fill prints a verdict card with
+          The desk stakes 1 tUSDC on live DreamDEX markets, YES or NO side. Every fill prints a verdict card with
           its real transaction, and the chain, not the desk, decides WON or LOST.
         </p>
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">

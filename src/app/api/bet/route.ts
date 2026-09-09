@@ -9,12 +9,13 @@ export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as { marketId?: string; amount?: number; question?: string };
+    const body = (await req.json()) as { marketId?: string; amount?: number; question?: string; outcome?: string };
     const marketId = body.marketId;
     const amount = Math.max(1, Math.min(50, Math.floor(Number(body.amount ?? 1))));
     if (!marketId) return NextResponse.json({ error: "marketId required" }, { status: 400 });
 
-    const result = await placeBet(marketId, amount);
+    const outcome: "YES" | "NO" = body.outcome === "NO" ? "NO" : "YES";
+    const result = await placeBet(marketId, amount, outcome);
     const wallet = await walletAddress();
     const receipt = {
       id: `${result.txHash.slice(0, 18)}-${Date.now()}`,
@@ -23,7 +24,7 @@ export async function POST(req: Request) {
       marketId,
       question: String(body.question ?? "").slice(0, 200),
       symbol: result.symbol,
-      outcome: "YES" as const,
+      outcome,
       side: "buy" as const,
       price: result.price,
       amount: result.amount,

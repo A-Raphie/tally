@@ -28,7 +28,7 @@ export async function POST() {
       if (s.voided) {
         status = "VOID";
         payout = r.filled * 0.5;
-      } else if (s.winningOutcome === 0) {
+      } else if (r.outcome === "NO" ? s.winningOutcome === 1 : s.winningOutcome === 0) {
         status = "WON";
         payout = r.filled * 1;
       } else {

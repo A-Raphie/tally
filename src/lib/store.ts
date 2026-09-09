@@ -8,7 +8,7 @@ export type Receipt = {
   marketId: string;
   question: string;
   symbol: string;
-  outcome: "YES";
+  outcome: "YES" | "NO";
   side: "buy";
   price: number;
   amount: number;

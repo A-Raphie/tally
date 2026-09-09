@@ -67,7 +67,8 @@ export type BetResult = {
 
 export async function placeBet(
   marketId: string,
-  amount: number
+  amount: number,
+  outcome: "YES" | "NO" = "YES"
 ): Promise<BetResult> {
   const ex = exchange();
   await ex.loadMarkets(true);
@@ -75,12 +76,14 @@ export async function placeBet(
   const onchain = await ex.client.getMarketOnchain(marketId as `0x${string}`);
   if (onchain.status !== 1) throw new Error(`market not Trading (status ${onchain.status})`);
 
-  const book = await ex.fetchOrderBook(marketId, 5);
+  // the NO book is the same book read from the other side; the SDK converts
+  const ref = outcome === "NO" ? `${marketId}#NO` : marketId;
+  const book = await ex.fetchOrderBook(ref, 5);
   const ask = book.asks[0]?.[0];
-  if (ask === undefined) throw new Error("no resting ask on YES book");
+  if (ask === undefined) throw new Error(`no resting ask on ${outcome} book`);
   const price = Math.min(0.97, ask + 0.02);
 
-  const order = await ex.createOrder(marketId, "limit", "buy", amount, price, {
+  const order = await ex.createOrder(ref, "limit", "buy", amount, price, {
     timeInForce: "IOC",
   });
   const info = (order as { info?: { receipt?: { transactionHash?: string }; orderId?: unknown } })
@@ -90,7 +93,7 @@ export async function placeBet(
   return {
     txHash,
     orderId: String((order as { id?: string }).id ?? info?.orderId ?? ""),
-    symbol: (order as { symbol?: string }).symbol ?? marketId,
+    symbol: (order as { symbol?: string }).symbol ?? `${marketId}#${outcome}`,
     side: "buy",
     price,
     amount,

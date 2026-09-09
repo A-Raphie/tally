@@ -40,9 +40,12 @@ function assetOf(q: string): string {
 
 function PriceTag({ price }: { price: number | null }) {
   if (price === null || Number.isNaN(price)) return <span className="text-[var(--text-3)]">no book</span>;
+  const no = Math.max(0, 1 - price);
   return (
     <span className="tabular-nums">
       <span className="text-[var(--text)]">YES {price.toFixed(2)}</span>
+      <span className="text-[var(--text-3)]"> · </span>
+      <span className="text-[var(--text)]">NO {no.toFixed(2)}</span>
       <span className="text-[var(--text-3)]"> · pays 1.00</span>
     </span>
   );
@@ -103,15 +106,15 @@ export default function Home() {
     };
   }, []);
 
-  async function bet(m: Market) {
-    setBetting(m.marketId);
+  async function bet(m: Market, outcome: "YES" | "NO") {
+    setBetting(m.marketId + outcome);
     setError(null);
     setPollError(null);
     try {
       const res = await fetch("/api/bet", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ marketId: m.marketId, amount: 1, question: m.question }),
+        body: JSON.stringify({ marketId: m.marketId, amount: 1, question: m.question, outcome }),
       });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
@@ -341,14 +344,26 @@ export default function Home() {
                         </span>
                       </p>
                     </div>
-                    <button
-                      onClick={() => bet(m)}
-                      disabled={betting !== null}
-                      aria-label={`Stake 1 tUSDC on YES: ${m.question}`}
-                      className="font-data h-10 shrink-0 rounded-full bg-[var(--accent)] px-5 text-xs font-semibold text-white transition-all duration-150 hover:bg-[var(--accent-hover)] active:scale-[0.96] disabled:opacity-40"
-                    >
-                      {betting === m.marketId ? "Staking…" : "Stake 1 · YES"}
-                    </button>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <button
+                        onClick={() => bet(m, "YES")}
+                        disabled={betting !== null || m.price === null}
+                        title={m.price === null ? "No ask on the book yet: nothing to cross" : undefined}
+                        aria-label={`Stake 1 tUSDC on YES: ${m.question}`}
+                        className="font-data h-10 rounded-full bg-[var(--accent)] px-5 text-xs font-semibold text-white transition-all duration-150 hover:bg-[var(--accent-hover)] active:scale-[0.96] disabled:opacity-40"
+                      >
+                        {betting === m.marketId + "YES" ? "Staking…" : "YES"}
+                      </button>
+                      <button
+                        onClick={() => bet(m, "NO")}
+                        disabled={betting !== null || m.price === null}
+                        title={m.price === null ? "No ask on the book yet: nothing to cross" : "Stake 1 tUSDC on NO"}
+                        aria-label={`Stake 1 tUSDC on NO: ${m.question}`}
+                        className="font-data h-10 rounded-full border border-[var(--line-2)] px-5 text-xs font-semibold text-[var(--text)] transition-all duration-150 hover:bg-[var(--surface-2)] active:scale-[0.96] disabled:opacity-40"
+                      >
+                        {betting === m.marketId + "NO" ? "Staking…" : "NO"}
+                      </button>
+                    </div>
                   </li>
                 );
               })}
