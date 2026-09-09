@@ -76,8 +76,20 @@ export async function placeBet(
   const onchain = await ex.client.getMarketOnchain(marketId as `0x${string}`);
   if (onchain.status !== 1) throw new Error(`market not Trading (status ${onchain.status})`);
 
-  // the NO book is the same book read from the other side; the SDK converts
-  const ref = outcome === "NO" ? `${marketId}#NO` : marketId;
+  // resolve the outcome's canonical tradable symbol from the unified registry
+  let ref = marketId;
+  if (outcome === "NO") {
+    const all = await ex.loadMarkets(true);
+    for (const um of Object.values(all)) {
+      const u = um as { id?: string; marketId?: string; outcomes?: Array<{ symbol?: string }> };
+      if (String(u.id ?? u.marketId ?? "") !== marketId) continue;
+      const noSymbol = u.outcomes?.[1]?.symbol;
+      if (!noSymbol) throw new Error("market has no NO outcome symbol");
+      ref = noSymbol;
+      break;
+    }
+    if (ref === marketId) throw new Error("market not found in registry for NO outcome");
+  }
   const book = await ex.fetchOrderBook(ref, 5);
   const ask = book.asks[0]?.[0];
   if (ask === undefined) throw new Error(`no resting ask on ${outcome} book`);
