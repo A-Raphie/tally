@@ -150,11 +150,17 @@ export async function placeBet(
   } catch (e) {
     const msg = String(e);
     if (!/ImmediateOrCancelNoFill|no fill/i.test(msg)) throw e;
-    const book2 = await ex.fetchOrderBook(ref, 5);
-    const ask2 = book2.asks[0]?.[0];
-    if (ask2 === undefined) throw new Error(`the ${outcome} book emptied before the order landed. Try again.`);
-    price = Math.min(0.97, ask2 + 0.05);
-    order = await ex.createOrder(ref, "limit", "buy", amount, price, { timeInForce: "IOC" });
+    try {
+      const book2 = await ex.fetchOrderBook(ref, 5);
+      const ask2 = book2.asks[0]?.[0];
+      if (ask2 === undefined) throw new Error("book emptied");
+      price = Math.min(0.97, ask2 + 0.05);
+      order = await ex.createOrder(ref, "limit", "buy", amount, price, { timeInForce: "IOC" });
+    } catch {
+      throw new Error(
+        `The ${outcome} book moved before the order landed. These testnet books are thin; try again in a moment.`
+      );
+    }
   }
   const info = (order as { info?: { receipt?: { transactionHash?: string }; orderId?: unknown } })
     .info;
