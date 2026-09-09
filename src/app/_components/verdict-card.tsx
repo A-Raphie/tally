@@ -6,6 +6,7 @@ export type CardReceipt = {
   marketId: string;
   question: string;
   symbol: string;
+  outcome: "YES" | "NO";
   price: number;
   filled: number;
   placedAt: number;
@@ -57,7 +58,7 @@ export function VerdictCard({ r, big = false }: { r: CardReceipt; big?: boolean 
         <div className="flex justify-between pt-1.5">
           <dt className="text-[var(--text-2)]">Entry</dt>
           <dd>
-            {r.filled} YES @ {r.price.toFixed(3)}
+            {r.filled} {r.outcome} @ {r.price.toFixed(3)}
           </dd>
         </div>
         <div className="flex justify-between pt-1.5">

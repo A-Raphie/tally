@@ -67,20 +67,24 @@ const j = async (path, opts) => {
   check("bet.bad-marketId=500-with-error", bad.status === 500 && !!bad.body?.error);
 }
 
-// 6. bet: the real flow (spends 1 testnet tUSDC) — only with --bet
+// 6. bet: the real flow (spends 1 testnet tUSDC per side) — only with --bet
 if (DO_BET) {
   const { body: mb } = await j("/api/markets");
   const m = mb?.markets?.find((x) => x.price !== null);
   if (!m) {
     check("bet.real-flow", false, "no priced market available");
   } else {
-    const res = await j("/api/bet", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ marketId: m.marketId, amount: 1, question: m.question }),
-    });
-    check("bet.real-flow", res.status === 200 && !!res.body?.receipt?.txHash,
-      res.body?.receipt?.txHash?.slice(0, 18) ?? res.body?.error?.slice(0, 80));
+    for (const outcome of ["YES", "NO"]) {
+      const res = await j("/api/bet", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ marketId: m.marketId, amount: 1, question: m.question, outcome }),
+      });
+      const r = res.body?.receipt;
+      const sideOk = r ? r.symbol.toUpperCase().endsWith("#" + outcome) : false;
+      check(`bet.${outcome}-flow`, res.status === 200 && !!r?.txHash && r.outcome === outcome && sideOk,
+        r ? `${r.symbol} tx ${r.txHash.slice(0, 14)}` : (res.body?.error?.slice(0, 80) ?? ""));
+    }
   }
 }
 
