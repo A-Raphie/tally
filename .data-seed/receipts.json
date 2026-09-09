@@ -1,0 +1,38 @@
+[
+  {
+    "id": "0xf39b045717f2f3ad-1788897754331",
+    "txHash": "0xf39b045717f2f3adfff27276fd83f10b4b42c454f2fdf48c1a309d9abf5ba156",
+    "orderId": "92233720368547764703",
+    "marketId": "0x0000000000000000000000000000000000000000000000000000000000017509",
+    "question": "BTC closes at or above its opening price",
+    "symbol": "BTC-0-08SEP26-2100/tUSDC#YES",
+    "outcome": "YES",
+    "side": "buy",
+    "price": 0.5700000000000001,
+    "amount": 2,
+    "filled": 2,
+    "placedAt": 1788897754331,
+    "wallet": "0x939606e92c24E5b8C875bbEdcCe93693E0BE9f7E",
+    "status": "WON",
+    "payout": 2,
+    "settledAt": 1788902250046
+  },
+  {
+    "id": "0x82b7ca65b7fc7d57-1788897322861",
+    "txHash": "0x82b7ca65b7fc7d57f34db72ecf917edd9ba6a1f86bdab2467c4ee7b2919e551f",
+    "orderId": "147573952589676425251",
+    "marketId": "0x0000000000000000000000000000000000000000000000000000000000017233",
+    "question": "ETH closes at or above its opening price",
+    "symbol": "ETH-0-08SEP26-2000-7233/tUSDC#YES",
+    "outcome": "YES",
+    "side": "buy",
+    "price": 0.04,
+    "amount": 1,
+    "filled": 1,
+    "placedAt": 1788897322861,
+    "wallet": "0x939606e92c24E5b8C875bbEdcCe93693E0BE9f7E",
+    "status": "LOST",
+    "payout": 0,
+    "settledAt": 1788897674264
+  }
+]

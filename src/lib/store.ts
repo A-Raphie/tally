@@ -20,20 +20,39 @@ export type Receipt = {
   settledAt: number | null;
 };
 
-const DIR = path.join(process.cwd(), ".data");
+const DIR =
+  process.env.TALLY_DATA_DIR ?? path.join(process.cwd(), ".data");
 const FILE = path.join(DIR, "receipts.json");
 
-export async function readReceipts(): Promise<Receipt[]> {
+// Bundled seed: the real receipts from the build-time runs. On serverless the
+// file store is per-instance, so reads fall back to the seed rather than
+// showing an empty desk.
+const SEED = path.join(process.cwd(), ".data-seed", "receipts.json");
+
+async function readSeed(): Promise<Receipt[]> {
   try {
-    return JSON.parse(await fs.readFile(FILE, "utf8")) as Receipt[];
+    return JSON.parse(await fs.readFile(SEED, "utf8")) as Receipt[];
   } catch {
     return [];
   }
 }
 
+export async function readReceipts(): Promise<Receipt[]> {
+  try {
+    return JSON.parse(await fs.readFile(FILE, "utf8")) as Receipt[];
+  } catch {
+    return readSeed();
+  }
+}
+
 export async function writeReceipts(receipts: Receipt[]): Promise<void> {
-  await fs.mkdir(DIR, { recursive: true });
-  await fs.writeFile(FILE, JSON.stringify(receipts, null, 2));
+  try {
+    await fs.mkdir(DIR, { recursive: true });
+    await fs.writeFile(FILE, JSON.stringify(receipts, null, 2));
+  } catch {
+    // read-only filesystem (serverless): the live desk keeps working from
+    // per-instance state; persistence is the documented server gap.
+  }
 }
 
 export async function addReceipt(r: Receipt): Promise<void> {
