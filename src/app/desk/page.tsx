@@ -349,6 +349,13 @@ export default function Home() {
             </div>
           )}
 
+          {desk !== null && desk.length > 0 && markets.every((m) => m.ask === null) && (
+            <div className="mb-3 border border-[var(--line-2)] bg-[var(--surface)] rounded-lg px-4 py-3 text-sm text-[var(--text-2)]">
+              Every listed book is empty right now. Fresh windows open with no resting asks; the
+              buttons unlock the moment a seller appears (usually within a minute or two).
+            </div>
+          )}
+
           {desk !== null && desk.length > 0 && (
             <ul className="divide-y divide-[var(--line)] border-y border-[var(--line)]">
               {desk.map((m) => {
