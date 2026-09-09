@@ -72,7 +72,7 @@ if (DO_BET) {
   const { body: mb } = await j("/api/markets");
   const m = mb?.markets?.find((x) => x.price !== null);
   if (!m) {
-    check("bet.real-flow", false, "no priced market available");
+    check("bet.real-flow", false, "no crossable market available");
   } else {
     for (const outcome of ["YES", "NO"]) {
       const res = await j("/api/bet", {

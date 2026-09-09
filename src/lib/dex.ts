@@ -7,6 +7,12 @@ let cached: SomniaMarkets | undefined;
 
 let registryAt = 0;
 
+async function ensureRegistry(): Promise<void> {
+  if (Date.now() - registryAt <= 5 * 60 * 1000) return;
+  await exchange().loadMarkets(true);
+  registryAt = Date.now();
+}
+
 export function exchange(): SomniaMarkets {
   if (cached) return cached;
   const key = process.env.TALLY_TEST_PRIVATE_KEY as `0x${string}` | undefined;
@@ -20,6 +26,19 @@ export function exchange(): SomniaMarkets {
   return cached;
 }
 
+// is there a crossable ask right now? (lastPrice alone lies: a market can
+// have traded before and have an empty book now)
+export async function getAsk(marketId: string): Promise<number | null> {
+  try {
+    await ensureRegistry();
+    const book = await exchange().fetchOrderBook(marketId, 1);
+    const ask = book.asks[0]?.[0];
+    return ask === undefined ? null : ask;
+  } catch {
+    return null;
+  }
+}
+
 export type LiveMarket = {
   marketId: string;
   question: string;
@@ -31,6 +50,7 @@ export type LiveMarket = {
   noTokenId: string | null;
   quoteDecimals: number | null;
   price: number | null;
+  ask: number | null;
 };
 
 export async function listLive(): Promise<LiveMarket[]> {
@@ -73,11 +93,7 @@ export async function placeBet(
   outcome: "YES" | "NO" = "YES"
 ): Promise<BetResult> {
   const ex = exchange();
-  // the registry build is the slow half of a stake; rebuild at most every 5 min
-  if (Date.now() - registryAt > 5 * 60 * 1000) {
-    await ex.loadMarkets(true);
-    registryAt = Date.now();
-  }
+  await ensureRegistry();
 
   const onchain = await ex.client.getMarketOnchain(marketId as `0x${string}`);
   if (onchain.status !== 1) throw new Error(`market not Trading (status ${onchain.status})`);
