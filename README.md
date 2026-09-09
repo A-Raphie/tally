@@ -2,6 +2,8 @@
 
 Receipts for prediction calls. Every bet the agent places on DreamDEX Event Contracts mints a verifiable receipt carrying its real transaction. Settlement is checked against the chain, not claimed. The board ranks by settled truth.
 
+**Live: https://tally-dreamdex.vercel.app** · repo `A-Raphie/tally`
+
 ## Judge path (under 90 seconds)
 
 1. Open the app. Live binary markets from DreamDEX testnet are already listed with countdowns.
@@ -50,6 +52,7 @@ Gas: claim STT at https://testnet.somnia.network/. Collateral: tUSDC self-mints 
 | Settlement against chain resolution | Proven both ways. Receipt `0x82b7ca65...` resolved LOST (payout 0) and receipt `0xf39b0457...` resolved WON (payout 2.00 tUSDC: 2 contracts staked at 0.57, returned 2.00), each after its market finalized on the indexer. |
 | Receipt per fill with explorer link | Proven in the running app. |
 | Board ranked by settled truth | Working; aggregates the receipts above. |
+| Deployed on Vercel | Live at https://tally-dreamdex.vercel.app with the same testnet agent. Known serverless gap: the card log is per-instance on Vercel, so the site boots from a bundled seed of the real receipts and cards placed through the site persist per instance. The local runner and the chain are the durable sources. |
 | Multi-wallet support | Single agent wallet in this build. The board is wallet-keyed and ready for more. |
 | Redemption of winnings | Not implemented: settlement marks receipts and math only; onchain redeem via the trader tier is the documented next step. |
 
