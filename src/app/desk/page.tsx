@@ -217,7 +217,7 @@ export default function Home() {
         </div>
 
         {/* ── hero band: proof before actions ───────────────────────── */}
-        <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_320px]">
+        <section className="mt-8 grid items-start gap-6 lg:grid-cols-[1fr_320px]">
           <div className="card p-5">
             <div className="flex items-baseline justify-between">
               <h2 className="text-sm font-semibold text-[var(--text)]">
