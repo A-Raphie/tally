@@ -27,16 +27,6 @@ function lineText(m: Market): string | null {
 
 const ORACLE_EXPLORER = "https://shannon-explorer.somnia.network/";
 
-function strikeFor(asset: string, strike: string | null): string | null {
-  if (!strike || strike === "0") {
-    return `${asset} opening price of this window, fixed by the oracle at open`;
-  }
-  const dec = asset.toUpperCase() === "ETH" ? 2 : asset.toUpperCase() === "BTC" ? 2 : 6;
-  const n = Number(strike) / 10 ** dec;
-  if (!Number.isFinite(n)) return null;
-  return `${asset} at or above $${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
-}
-
 type BoardRow = {
   wallet: string;
   bets: number;
@@ -416,24 +406,18 @@ export default function Home() {
                         <span>
                           {lineText(m) ?? assetOf(m.question)} · closes {clock(m.expiry * 1000)}
                         </span>
-                        {m.strike !== null && strikeFor(assetOf(m.question), m.strike) && (
-                          <span className="text-[var(--text-2)]">
-                            {" · line: "}
-                            {strikeFor(assetOf(m.question), m.strike)}
-                            {m.oracleQuestionId && (
-                              <>
-                                {" · "}
-                                <a
-                                  href={ORACLE_EXPLORER}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="underline decoration-dotted underline-offset-2 hover:text-[var(--text)]"
-                                  title="Oracle question id for this market"
-                                >
-                                  oracle #{String(m.oracleQuestionId).slice(-6)}
-                                </a>
-                              </>
-                            )}
+                        {m.oracleQuestionId && (
+                          <span className="text-[var(--text-3)]">
+                            {" · "}
+                            <a
+                              href={ORACLE_EXPLORER}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="underline decoration-dotted underline-offset-2 hover:text-[var(--text)]"
+                              title="Oracle question id for this market"
+                            >
+                              oracle #{String(m.oracleQuestionId).slice(-6)}
+                            </a>
                           </span>
                         )}
                         <span className={closing ? "text-[var(--text)]" : "text-[var(--text-3)]"}>
