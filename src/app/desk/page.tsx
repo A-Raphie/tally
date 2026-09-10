@@ -226,8 +226,8 @@ export default function Home() {
           </div>
           <p className="mt-5 max-w-[68ch] text-sm leading-relaxed text-[var(--text-2)] text-pretty">
             The desk stakes 1 tUSDC on live prediction markets, YES or NO side. Every fill prints a verdict
-            card carrying its real transaction; when the market finalizes, the chain, not the desk,
-            flips it to WON or LOST. Every number shows its source.
+            card carrying its real transaction; when the market finalizes onchain, the card flips
+            to WON, LOST, or VOID with the payout computed. Every number shows its source.
           </p>
         </header>
 
