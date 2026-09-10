@@ -407,30 +407,11 @@ export default function Home() {
                           </span>
                         )}
                       </p>
-                      <p className="mt-0.5 text-xs text-[var(--text-2)]">
+                      <p className="font-data mt-0.5 text-xs text-[var(--text-2)]">
                         <PriceTag price={m.price} />
                         <span className="text-[var(--text-3)]"> · </span>
-                        <span>
-                          {lineText(m) ?? assetOf(m.question)} · closes {clock(m.expiry * 1000)}
-                        </span>
-                        {m.oracleQuestionId && (
-                          <span className="text-[var(--text-3)]">
-                            {" · "}
-                            <a
-                              href={ORACLE_EXPLORER}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="underline decoration-dotted underline-offset-2 hover:text-[var(--text)]"
-                              title="Oracle question id for this market"
-                            >
-                              oracle #{String(m.oracleQuestionId).slice(-6)}
-                            </a>
-                          </span>
-                        )}
-                        <span className={closing ? "text-[var(--text)]" : "text-[var(--text-3)]"}>
-                          {" · "}
-                          {closing ? "CLOSING " : ""}
-                          {fmtSecs(secsLeft)}
+                        <span className={closing ? "text-[var(--text)]" : ""}>
+                          closes in {fmtSecs(secsLeft)}
                         </span>
                       </p>
                     </div>
