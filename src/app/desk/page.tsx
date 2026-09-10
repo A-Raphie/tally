@@ -494,9 +494,12 @@ export default function Home() {
 
         {/* ── board ─────────────────────────────────────────────────── */}
         <section className="mt-12">
-          <h2 className="mb-2 text-sm font-semibold text-[var(--text)]">
+          <h2 className="mb-1 text-sm font-semibold text-[var(--text)]">
             03 / Board · settled truth only
           </h2>
+          <p className="mb-3 text-xs text-[var(--text-2)]">
+            Settled cards only. Open calls join the moment their markets finalize.
+          </p>
           <ul className="divide-y divide-[var(--line)] border-y border-[var(--line)]">
             {board.length === 0 && (
               <li className="py-6 text-sm text-[var(--text-2)]">
@@ -524,9 +527,9 @@ export default function Home() {
 
         <footer className="mt-14 border-t border-[var(--line)] pt-6 text-xs text-[var(--text-2)]">
           <p className="max-w-[74ch] leading-relaxed">
-            Somnia Shannon testnet · chain 50312. Orders are IOC limit crosses of the YES book,
-            sized 1 tUSDC. Verdict cards live in the desk&apos;s own log; the chain is the source of
-            truth for every verdict.
+            Somnia Shannon testnet · chain 50312. Orders are IOC limit crosses of the YES or NO
+            book, sized 1 tUSDC. Verdict cards are derived from the indexer&apos;s fill tape on
+            every load; the chain is the source of truth for every verdict.
           </p>
           <p className="mt-2">
             Tally · built by{" "}
