@@ -95,16 +95,22 @@ export type LiveMarket = {
 // strike IS the line, scaled 100x on these pricefeeds (verified vs the
 // question text). Oracle price scale on this venue: 2 decimals.
 // oracle answers carry NO scale (the SDK docs flag this as a trap: adapters
-// differ). Resolve it by plausibility band per asset — the venue's own
-// questions show BTC in the tens of thousands and ETH in the thousands.
+// and even successive questions of one feed differ). Resolve by sibling
+// consensus: consecutive windows of a feed print near-identical opens, so the
+// scale that puts the most rows of an asset inside a plausible band wins, and
+// outliers snap to it when within 10%.
 const ASSET_BAND: Record<string, [number, number]> = {
   BTC: [1000, 5_000_000],
   ETH: [50, 1_000_000],
 };
-const SCALES = [2, 6, 8, 12];
+const SCALES = [2, 6, 8, 10, 12];
 
-function scaleRaw(raw: number, asset: string): number | null {
+function scaleRaw(raw: number, asset: string, preferred?: number): number | null {
   const [lo, hi] = ASSET_BAND[asset.toUpperCase()] ?? [0.01, 10_000_000];
+  if (preferred !== undefined) {
+    const v = raw / 10 ** preferred;
+    if (v >= lo && v <= hi) return v;
+  }
   for (const s of SCALES) {
     const v = raw / 10 ** s;
     if (v >= lo && v <= hi) return v;
@@ -144,25 +150,65 @@ export async function listLive(): Promise<LiveMarket[]> {
     openings = {};
   }
   const now = Date.now() / 1000;
-  return rows
-    .map((m) => ({
-      marketId: String(m.marketId),
-      question: m.question || "(untitled)",
-      poolAddress: String(m.poolAddress),
-      status: String(m.status ?? ""),
-      expiry: Number(m.expiry),
-      secsLeft: Math.round(Number(m.expiry) - now),
-      yesTokenId: m.yesTokenId ? String(m.yesTokenId) : null,
-      noTokenId: m.noTokenId ? String(m.noTokenId) : null,
-      strike: (m as { strike?: string | null }).strike ?? null,
-      oracleQuestionId: (m as { oracleQuestionId?: string | null }).oracleQuestionId ?? null,
-      quoteDecimals: m.quoteDecimals != null ? Number(m.quoteDecimals) : null,
-      price:
-        m.lastPrice != null && m.quoteDecimals != null
-          ? Number(m.lastPrice) / 10 ** Number(m.quoteDecimals)
-          : null,
-      line: lineFor(m as { strike?: string | null; asset?: string; marketId: string }, openings),
-    }))
+  const mapped = rows.map((m) => ({
+    marketId: String(m.marketId),
+    question: m.question || "(untitled)",
+    poolAddress: String(m.poolAddress),
+    status: String(m.status ?? ""),
+    expiry: Number(m.expiry),
+    secsLeft: Math.round(Number(m.expiry) - now),
+    yesTokenId: m.yesTokenId ? String(m.yesTokenId) : null,
+    noTokenId: m.noTokenId ? String(m.noTokenId) : null,
+    strike: (m as { strike?: string | null }).strike ?? null,
+    oracleQuestionId: (m as { oracleQuestionId?: string | null }).oracleQuestionId ?? null,
+    quoteDecimals: m.quoteDecimals != null ? Number(m.quoteDecimals) : null,
+    price:
+      m.lastPrice != null && m.quoteDecimals != null
+        ? Number(m.lastPrice) / 10 ** Number(m.quoteDecimals)
+        : null,
+    asset: (m.asset || "").toUpperCase(),
+  }));
+
+  // per-asset sibling consensus on the opening-answer scale
+  const byAssetRaw = new Map<string, Array<{ marketId: string; raw: number; strikeRaw: string | null }>>();
+  for (const m of mapped) {
+    const raw = openings[m.marketId.toLowerCase()];
+    if (raw == null) continue;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n === 0) continue;
+    const list = byAssetRaw.get(m.asset) ?? [];
+    list.push({ marketId: m.marketId, raw: n, strikeRaw: m.strike });
+    byAssetRaw.set(m.asset, list);
+  }
+  const preferredScale = new Map<string, number>();
+  for (const [asset, list] of byAssetRaw) {
+    const tally = new Map<number, number>();
+    for (const { raw, strikeRaw } of list) {
+      if (strikeRaw && strikeRaw !== "0") continue;
+      for (const sc of SCALES) {
+        const [lo, hi] = ASSET_BAND[asset] ?? [0.01, 10_000_000];
+        const v = raw / 10 ** sc;
+        if (v >= lo && v <= hi) tally.set(sc, (tally.get(sc) ?? 0) + 1);
+      }
+    }
+    let best: number | undefined;
+    let bestN = 0;
+    for (const [sc, n] of tally) if (n > bestN) { best = sc; bestN = n; }
+    if (best !== undefined) preferredScale.set(asset, best);
+  }
+
+  return mapped
+    .map((m) => {
+      let line: Line | null = null;
+      const entry = openings[m.marketId.toLowerCase()];
+      if (entry != null || (m.strike && m.strike !== "0")) {
+        const v = scaleRaw(Number(entry ?? m.strike ?? "0"), m.asset || "THE ASSET", preferredScale.get(m.asset));
+        line = v === null ? { mode: m.strike && m.strike !== "0" ? "fixed" : "reference", value: null, asset: m.asset } : { mode: m.strike && m.strike !== "0" ? "fixed" : "reference", value: v, asset: m.asset };
+      } else {
+        line = { mode: "reference", value: null, asset: m.asset };
+      }
+      return { ...m, line };
+    })
     .filter((m) => m.secsLeft > 120)
     .sort((a, b) => a.secsLeft - b.secsLeft);
 }
