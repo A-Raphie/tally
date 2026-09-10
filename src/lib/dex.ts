@@ -94,20 +94,42 @@ export type LiveMarket = {
 // line is the oracle's opening answer. fixed rows ("at or above 2464.40"):
 // strike IS the line, scaled 100x on these pricefeeds (verified vs the
 // question text). Oracle price scale on this venue: 2 decimals.
+// oracle answers carry NO scale (the SDK docs flag this as a trap: adapters
+// differ). Resolve it by plausibility band per asset — the venue's own
+// questions show BTC in the tens of thousands and ETH in the thousands.
+const ASSET_BAND: Record<string, [number, number]> = {
+  BTC: [1000, 5_000_000],
+  ETH: [50, 1_000_000],
+};
+const SCALES = [2, 6, 8, 12];
+
+function scaleRaw(raw: number, asset: string): number | null {
+  const [lo, hi] = ASSET_BAND[asset.toUpperCase()] ?? [0.01, 10_000_000];
+  for (const s of SCALES) {
+    const v = raw / 10 ** s;
+    if (v >= lo && v <= hi) return v;
+  }
+  return null;
+}
+
 export function lineFor(
   m: { strike?: string | null; asset?: string; marketId: string },
   openings: Record<string, string | null>
 ): Line | null {
-  const asset = m.asset || "the asset";
+  const asset = (m.asset || "the asset").toUpperCase();
   const strikeRaw = m.strike;
   if (strikeRaw != null && strikeRaw !== "0" && strikeRaw !== "") {
-    const v = Number(strikeRaw) / 100;
-    return Number.isFinite(v) ? { mode: "fixed", value: v, asset } : null;
+    const raw = Number(strikeRaw);
+    if (!Number.isFinite(raw)) return null;
+    const v = scaleRaw(raw, asset);
+    return v === null ? null : { mode: "fixed", value: v, asset };
   }
   const raw = openings[m.marketId.toLowerCase()] ?? openings[String(m.marketId)];
   if (raw == null) return { mode: "reference", value: null, asset };
-  const v = Number(raw) / 100;
-  return Number.isFinite(v) ? { mode: "reference", value: v, asset } : { mode: "reference", value: null, asset };
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n === 0) return { mode: "reference", value: null, asset };
+  const v = scaleRaw(n, asset);
+  return v === null ? { mode: "reference", value: null, asset } : { mode: "reference", value: v, asset };
 }
 
 export async function listLive(): Promise<LiveMarket[]> {
