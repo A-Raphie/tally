@@ -52,6 +52,7 @@ Gas: claim STT at https://testnet.somnia.network/. Collateral: tUSDC self-mints 
 | Settlement against chain resolution | Proven both ways for YES positions. NO positions settle through the same code path (NO wins when the resolution names outcome 1); a live NO settlement has not been observed yet. | Receipt `0x82b7ca65...` resolved LOST (payout 0) and receipt `0xf39b0457...` resolved WON (payout 2.00 tUSDC: 2 contracts staked at 0.57, returned 2.00), each after its market finalized on the indexer. |
 | Receipt per fill with explorer link | Proven in the running app. |
 | Board ranked by settled truth | Working; aggregates the receipts above. |
+| Per-device marks | Cards a visitor's clicks directed are marked 'your call' via that browser's localStorage. Marks are per-browser, not per-person. |
 | Deployed on Vercel | Live at https://tally-dreamdex.vercel.app. Verdict cards are stateless: every visit derives the full tape from the indexer, so every viewer on every instance sees the same cards. The chain is the database. |
 | Multi-wallet support | Single agent wallet in this build. The board is wallet-keyed and ready for more. |
 | Redemption of winnings | Not implemented: settlement marks receipts and math only; onchain redeem via the trader tier is the documented next step. |
