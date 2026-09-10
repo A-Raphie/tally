@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://tally-dreamdex.vercel.app"),
   title: "Tally · receipts for prediction calls",
   description:
-    "A settlement instrument for DreamDEX Event Contracts. The desk stakes 1 tUSDC YES on live prediction markets; every fill prints a verdict card with its real transaction, and the chain flips it WON or LOST.",
+    "A settlement instrument for DreamDEX Event Contracts. The desk stakes 1 tUSDC, YES or NO side, on live prediction markets; every fill prints a verdict card with its real transaction, and the chain flips it WON or LOST.",
   openGraph: {
     title: "Tally · receipts for prediction calls",
     description:

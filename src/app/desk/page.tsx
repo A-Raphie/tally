@@ -159,6 +159,7 @@ export default function Home() {
     setSettling(true);
     setError(null);
     setPollError(null);
+    setFlash(null);
     try {
       const res = await fetch("/api/settle", { method: "POST" });
       const json = await res.json();
@@ -214,7 +215,7 @@ export default function Home() {
             <span className="text-[var(--text-3)]">Testnet</span>
           </div>
           <p className="mt-5 max-w-[68ch] text-sm leading-relaxed text-[var(--text-2)] text-pretty">
-            The desk stakes 1 tUSDC YES on live prediction markets. Every fill prints a verdict
+            The desk stakes 1 tUSDC, YES or NO side, on live prediction markets. Every fill prints a verdict
             card carrying its real transaction; when the market finalizes, the chain, not the desk,
             flips it to WON or LOST. Every number shows its source.
           </p>

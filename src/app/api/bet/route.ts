@@ -38,6 +38,7 @@ export async function POST(req: Request) {
     // few seconds after the tx confirms
     return NextResponse.json({ receipt });
   } catch (e) {
-    return NextResponse.json({ error: String((e as Error).message ?? e) }, { status: 500 });
+    const message = String((e as Error).message ?? e);
+    return NextResponse.json({ error: message, action: "retry-stake-or-next-market" }, { status: 500 });
   }
 }
