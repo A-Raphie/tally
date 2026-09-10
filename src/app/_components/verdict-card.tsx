@@ -34,6 +34,29 @@ export function clock(ts: number): string {
   return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
+export function isVenueTest(question: string): boolean {
+  return /^Pricefeed test:/i.test(question.trim());
+}
+
+// human title: the oracle question compressed to its decision
+export function shortMarketTitle(question: string, lineValue: number | null): string {
+  const pf = question.match(
+    /^Pricefeed test: will (\w+)\/USDC's price be at or above ([\d.]+) at unix time \d+\?$/i
+  );
+  if (pf) {
+    return `${pf[1].toUpperCase()} ≥ $${Number(pf[2]).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+  }
+  const op = question.match(/^(\w+) closes at or above its opening price$/i);
+  if (op) {
+    const asset = op[1].toUpperCase();
+    if (lineValue != null) {
+      return `${asset} ≥ open $${lineValue.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+    }
+    return `${asset} above its open`;
+  }
+  return question.length > 64 ? question.slice(0, 61) + "…" : question;
+}
+
 export function short(a: string, head = 8, tail = 4): string {
   return a.length > head + tail + 2 ? `${a.slice(0, head)}···${a.slice(-tail)}` : a;
 }

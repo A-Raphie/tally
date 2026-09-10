@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { deriveCards } from "@/lib/cards";
 import { listLive, type LiveMarket } from "@/lib/dex";
-import { VerdictCard } from "./_components/verdict-card";
+import { VerdictCard, shortMarketTitle, isVenueTest } from "./_components/verdict-card";
 
 export const dynamic = "force-dynamic";
 
@@ -161,7 +161,14 @@ export default async function Landing() {
           ) : (
             markets.map((m) => (
               <div key={m.marketId} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 py-3.5">
-                <p className="min-w-0 flex-1 basis-64 truncate text-sm">{m.question}</p>
+                <p className="min-w-0 flex-1 basis-64 truncate text-sm">
+                  {shortMarketTitle(m.question, m.line?.value ?? null)}
+                  {isVenueTest(m.question) && (
+                    <span className="font-data ml-2 rounded-full border border-[var(--line)] px-2 py-0.5 text-[10px] text-[var(--text-3)]">
+                      venue test
+                    </span>
+                  )}
+                </p>
                 <p className="font-data text-xs text-[var(--text-2)]">
                   {m.price !== null ? (
                     <>
@@ -169,15 +176,6 @@ export default async function Landing() {
                     </>
                   ) : (
                     <span className="text-[var(--text-3)]">no book</span>
-                  )}
-                  <span className="text-[var(--text-3)]"> · </span>
-                  {m.line?.value != null && (
-                    <span>
-                      {m.line.mode === "fixed"
-                        ? `line ${m.line.asset} ≥ $${m.line.value.toLocaleString("en-US", { maximumFractionDigits: 2 })}`
-                        : `line ${m.line.asset} open = $${m.line.value.toLocaleString("en-US", { maximumFractionDigits: 2 })}`}
-                      <span className="text-[var(--text-3)]"> · </span>
-                    </span>
                   )}
                   <span className="text-[var(--text-3)]">closes {new Date(m.expiry * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}</span>
                 </p>

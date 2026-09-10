@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { VerdictCard, clock, short, type CardReceipt as Receipt } from "../_components/verdict-card";
+import { VerdictCard, clock, short, isVenueTest, shortMarketTitle, type CardReceipt as Receipt } from "../_components/verdict-card";
 import { EXPLORER } from "../_components/links";
 
 type Market = {
@@ -348,7 +348,7 @@ export default function Home() {
               01 / Live desk
             </h2>
             <span className="text-[11px] text-[var(--text-2)]">
-              soonest expiry first · YES or NO · 1 tUSDC · IOC
+              soonest first · each side pays 1.00 · 1 tUSDC · IOC
             </span>
           </div>
 
@@ -398,7 +398,14 @@ export default function Home() {
                             className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--win)]"
                           />
                         )}
-                        <span className="truncate">{m.question}</span>
+                        <span className="truncate" title={m.question}>
+                          {shortMarketTitle(m.question, m.line?.value ?? null)}
+                        </span>
+                        {isVenueTest(m.question) && (
+                          <span className="font-data shrink-0 rounded-full border border-[var(--line-2)] px-2 py-0.5 text-[10px] text-[var(--text-3)]">
+                            venue test
+                          </span>
+                        )}
                       </p>
                       <p className="mt-0.5 text-xs text-[var(--text-2)]">
                         <PriceTag price={m.price} />
