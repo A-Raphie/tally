@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { readReceipts } from "@/lib/store";
+import { deriveCards } from "@/lib/cards";
 import { listLive, type LiveMarket } from "@/lib/dex";
 import { VerdictCard } from "./_components/verdict-card";
 
 export const dynamic = "force-dynamic";
 
 export default async function Landing() {
-  const receipts = await readReceipts();
+  const receipts = await deriveCards();
   const won = receipts.filter((r) => r.status === "WON").length;
   const lost = receipts.filter((r) => r.status === "LOST").length;
   const returned = receipts.reduce((s, r) => s + (r.payout ?? 0), 0);

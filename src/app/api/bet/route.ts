@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { placeBet, walletAddress } from "@/lib/dex";
-import { addReceipt } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +34,8 @@ export async function POST(req: Request) {
       payout: null,
       settledAt: null,
     };
-    await addReceipt(receipt);
+    // no store write: cards derive from the indexer fill tape, which lands a
+    // few seconds after the tx confirms
     return NextResponse.json({ receipt });
   } catch (e) {
     return NextResponse.json({ error: String((e as Error).message ?? e) }, { status: 500 });

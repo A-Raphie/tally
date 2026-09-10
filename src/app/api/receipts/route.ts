@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
-import { readReceipts } from "@/lib/store";
+import { deriveCards } from "@/lib/cards";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export async function GET() {
-  const receipts = await readReceipts();
-  return NextResponse.json({ receipts });
+  try {
+    const receipts = await deriveCards();
+    return NextResponse.json({ receipts });
+  } catch (e) {
+    return NextResponse.json({ error: String((e as Error).message ?? e) }, { status: 500 });
+  }
 }

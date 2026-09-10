@@ -129,8 +129,12 @@ export default function Home() {
       if (json.error) throw new Error(json.error);
       setFlash({ tx: json.receipt?.txHash ?? "" });
       if (flashTimer.current) clearTimeout(flashTimer.current);
-      flashTimer.current = setTimeout(() => setFlash(null), 6000);
+      flashTimer.current = setTimeout(() => setFlash(null), 8000);
       await refresh();
+      // the indexer trails the tx by a few seconds: pull again so the fresh
+      // card is on screen fast
+      setTimeout(() => { void refresh(); }, 6000);
+      setTimeout(() => { void refresh(); }, 12000);
       // bring the fresh card to your eyes: the click happened at the desk row,
       // the proof prints in the hero band
       requestAnimationFrame(() => {
@@ -325,7 +329,7 @@ export default function Home() {
               01 / Live desk
             </h2>
             <span className="text-[11px] text-[var(--text-2)]">
-              soonest expiry first · YES side · 1 tUSDC · IOC
+              soonest expiry first · YES or NO · 1 tUSDC · IOC
             </span>
           </div>
 
