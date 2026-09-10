@@ -64,6 +64,13 @@ export async function getAsk(marketId: string): Promise<number | null> {
   }
 }
 
+export type Line = {
+  mode: "reference" | "fixed";
+  // the line in human units (oracle price scale), null when not yet answered
+  value: number | null;
+  asset: string;
+};
+
 export type LiveMarket = {
   marketId: string;
   question: string;
@@ -77,13 +84,43 @@ export type LiveMarket = {
   price: number | null;
   strike: string | null;
   oracleQuestionId: string | null;
+  line: Line | null;
   ask?: number | null;
   noAsk?: number | null;
 };
 
+
+// reference rows ("closes at or above its opening price"): strike is 0 and the
+// line is the oracle's opening answer. fixed rows ("at or above 2464.40"):
+// strike IS the line, scaled 100x on these pricefeeds (verified vs the
+// question text). Oracle price scale on this venue: 2 decimals.
+export function lineFor(
+  m: { strike?: string | null; asset?: string; marketId: string },
+  openings: Record<string, string | null>
+): Line | null {
+  const asset = m.asset || "the asset";
+  const strikeRaw = m.strike;
+  if (strikeRaw != null && strikeRaw !== "0" && strikeRaw !== "") {
+    const v = Number(strikeRaw) / 100;
+    return Number.isFinite(v) ? { mode: "fixed", value: v, asset } : null;
+  }
+  const raw = openings[m.marketId.toLowerCase()] ?? openings[String(m.marketId)];
+  if (raw == null) return { mode: "reference", value: null, asset };
+  const v = Number(raw) / 100;
+  return Number.isFinite(v) ? { mode: "reference", value: v, asset } : { mode: "reference", value: null, asset };
+}
+
 export async function listLive(): Promise<LiveMarket[]> {
   const ex = exchange();
   const rows = await ex.client.listLiveBinaryMarkets({ limit: 30 });
+  // resolve lines in one batched read: reference-mode rows take the oracle's
+  // opening answer, fixed-strike rows carry the threshold in `strike`
+  let openings: Record<string, string | null> = {};
+  try {
+    openings = await ex.client.getOpeningPrices(rows.map((m) => String(m.marketId)));
+  } catch {
+    openings = {};
+  }
   const now = Date.now() / 1000;
   return rows
     .map((m) => ({
@@ -102,6 +139,7 @@ export async function listLive(): Promise<LiveMarket[]> {
         m.lastPrice != null && m.quoteDecimals != null
           ? Number(m.lastPrice) / 10 ** Number(m.quoteDecimals)
           : null,
+      line: lineFor(m as { strike?: string | null; asset?: string; marketId: string }, openings),
     }))
     .filter((m) => m.secsLeft > 120)
     .sort((a, b) => a.secsLeft - b.secsLeft);
