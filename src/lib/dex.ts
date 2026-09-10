@@ -105,17 +105,9 @@ const ASSET_BAND: Record<string, [number, number]> = {
 };
 const SCALES = [2, 6, 8, 10, 12];
 
-function scaleRaw(raw: number, asset: string, preferred?: number): number | null {
+function candidates(raw: number, asset: string): number[] {
   const [lo, hi] = ASSET_BAND[asset.toUpperCase()] ?? [0.01, 10_000_000];
-  if (preferred !== undefined) {
-    const v = raw / 10 ** preferred;
-    if (v >= lo && v <= hi) return v;
-  }
-  for (const s of SCALES) {
-    const v = raw / 10 ** s;
-    if (v >= lo && v <= hi) return v;
-  }
-  return null;
+  return SCALES.map((s) => raw / 10 ** s).filter((v) => v >= lo && v <= hi);
 }
 
 export function lineFor(
@@ -180,7 +172,9 @@ export async function listLive(): Promise<LiveMarket[]> {
     list.push({ marketId: m.marketId, raw: n, strikeRaw: m.strike });
     byAssetRaw.set(m.asset, list);
   }
-  const preferredScale = new Map<string, number>();
+  // majority scale + median value per asset: consecutive windows of one feed
+  // print near-identical opens, so the median anchors every row's scale pick
+  const assetMedian = new Map<string, number>();
   for (const [asset, list] of byAssetRaw) {
     const tally = new Map<number, number>();
     for (const { raw, strikeRaw } of list) {
@@ -194,18 +188,42 @@ export async function listLive(): Promise<LiveMarket[]> {
     let best: number | undefined;
     let bestN = 0;
     for (const [sc, n] of tally) if (n > bestN) { best = sc; bestN = n; }
-    if (best !== undefined) preferredScale.set(asset, best);
+    if (best !== undefined) {
+      const vs = list
+        .map(({ raw }) => raw / 10 ** best)
+        .filter((v) => {
+          const [lo, hi] = ASSET_BAND[asset] ?? [0.01, 10_000_000];
+          return v >= lo && v <= hi;
+        })
+        .sort((a, b) => a - b);
+      if (vs.length) assetMedian.set(asset, vs[Math.floor(vs.length / 2)]);
+    }
   }
 
   return mapped
     .map((m) => {
+      const asset = m.asset || "THE ASSET";
+      const median = assetMedian.get(asset);
       let line: Line | null = null;
       const entry = openings[m.marketId.toLowerCase()];
-      if (entry != null || (m.strike && m.strike !== "0")) {
-        const v = scaleRaw(Number(entry ?? m.strike ?? "0"), m.asset || "THE ASSET", preferredScale.get(m.asset));
-        line = v === null ? { mode: m.strike && m.strike !== "0" ? "fixed" : "reference", value: null, asset: m.asset } : { mode: m.strike && m.strike !== "0" ? "fixed" : "reference", value: v, asset: m.asset };
+      const isFixed = m.strike && m.strike !== "0";
+      if (entry != null || isFixed) {
+        const raw = Number(entry ?? m.strike ?? "0");
+        const cands = candidates(raw, asset);
+        if (cands.length === 0) {
+          line = { mode: isFixed ? "fixed" : "reference", value: null, asset };
+        } else if (median !== undefined) {
+          // the sibling median decides the scale, not first-in-band: one row's
+          // raw can be ambiguous between two scales
+          const v = cands.reduce((best, c) =>
+            Math.abs(Math.log(c / median)) < Math.abs(Math.log(best / median)) ? c : best
+          );
+          line = { mode: isFixed ? "fixed" : "reference", value: v, asset };
+        } else {
+          line = { mode: isFixed ? "fixed" : "reference", value: cands[0], asset };
+        }
       } else {
-        line = { mode: "reference", value: null, asset: m.asset };
+        line = { mode: "reference", value: null, asset };
       }
       return { ...m, line };
     })
