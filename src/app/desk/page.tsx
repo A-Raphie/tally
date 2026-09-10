@@ -70,7 +70,6 @@ function PriceTag({ price }: { price: number | null }) {
       <span className="text-[var(--text)]">YES {price.toFixed(2)}</span>
       <span className="text-[var(--text-3)]"> · </span>
       <span className="text-[var(--text)]">NO {no.toFixed(2)}</span>
-      <span className="text-[var(--text-3)]"> · pays 1.00</span>
     </span>
   );
 }
