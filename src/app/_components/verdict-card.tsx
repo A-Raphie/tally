@@ -63,7 +63,7 @@ export function short(a: string, head = 8, tail = 4): string {
 
 /* The verdict card is the product: shared by the landing hero (server-rendered
    live cards) and the desk. The provenance panel is the signature. */
-export function VerdictCard({ r, big = false }: { r: CardReceipt; big?: boolean }) {
+export function VerdictCard({ r, big = false, yours = false }: { r: CardReceipt; big?: boolean; yours?: boolean }) {
   const staked = r.filled * r.price;
   return (
     <article
@@ -72,6 +72,11 @@ export function VerdictCard({ r, big = false }: { r: CardReceipt; big?: boolean 
       <div className="font-data flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] text-[var(--text-3)]">
         <span>RCPT {r.id.slice(2, 14).toUpperCase()}</span>
         <span className={`chip ${CHIP[r.status]}`}>{r.status}</span>
+        {yours && (
+          <span className="chip border-[var(--accent)] text-[var(--accent)]" title="this device directed the click that printed this card">
+            your call
+          </span>
+        )}
         <span>{clock(r.placedAt)}</span>
       </div>
       <h3 className={`mt-2.5 font-semibold leading-snug text-balance ${big ? "text-base" : "text-sm"}`}>

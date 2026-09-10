@@ -86,6 +86,18 @@ export default function Home() {
   const [conn, setConn] = useState<Conn>("up");
   const [now, setNow] = useState(() => Date.now());
   const [hydrated, setHydrated] = useState(false);
+  const [mine, setMine] = useState<Set<string>>(new Set());
+
+  const claimTx = useCallback((tx: string) => {
+    if (!tx) return;
+    try {
+      const key = "tally-mine";
+      const list = JSON.parse(localStorage.getItem(key) ?? "[]") as string[];
+      if (!list.includes(tx)) list.push(tx);
+      localStorage.setItem(key, JSON.stringify(list.slice(-100)));
+      setMine(new Set(list));
+    } catch {}
+  }, []);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // pre-hydration clicks are silently dead: keep every control visibly
@@ -148,6 +160,7 @@ export default function Home() {
       });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
+      if (json.receipt?.txHash) claimTx(json.receipt.txHash);
       setFlash({ tx: json.receipt?.txHash ?? "" });
       if (flashTimer.current) clearTimeout(flashTimer.current);
       flashTimer.current = setTimeout(() => setFlash(null), 8000);
@@ -200,6 +213,10 @@ export default function Home() {
   const staked = receipts.reduce((s, r) => s + r.filled * r.price, 0);
   const heldIds = new Set(receipts.map((r) => r.marketId));
   const latest = receipts[0];
+  const openByWallet = new Map<string, number>();
+  for (const r of receipts) {
+    if (r.status === "OPEN") openByWallet.set(r.wallet, (openByWallet.get(r.wallet) ?? 0) + 1);
+  }
   const desk = markets === null ? null : markets.slice(0, 5);
 
   return (
@@ -246,7 +263,8 @@ export default function Home() {
         <p className="mt-4 border border-[var(--line)] bg-[var(--surface)] rounded-lg px-4 py-3 text-sm leading-relaxed text-[var(--text-2)]">
           <span className="font-semibold text-[var(--text)]">How staking works:</span> there is no
           wallet to connect. Every click directs this desk&apos;s funded testnet agent to stake 1
-          tUSDC from its own balance and prints the card here. Nothing of yours is ever at stake.
+          tUSDC from its own balance and prints the card here. Nothing of yours is ever at stake. Cards the whole desk prints are shared; the ones your
+          clicks directed are marked &quot;your call&quot; on this device.
         </p>
 
         {(betting || settling) && (
@@ -292,7 +310,7 @@ export default function Home() {
             </div>
             {latest ? (
               <div data-latest-card>
-                <VerdictCard r={latest} big />
+                <VerdictCard r={latest} big yours={mine.has(latest.txHash)} />
               </div>
             ) : (
               <div className="mt-4 border border-dashed border-[var(--line)] px-4 py-8 text-sm text-[var(--text-2)]">
@@ -461,7 +479,7 @@ export default function Home() {
               <ul className="grid gap-5 sm:grid-cols-2">
                 {receipts.slice(1, 13).map((r, i) => (
                   <li key={r.id} className="enter" style={{ animationDelay: `${Math.min(i * 40, 280)}ms` }}>
-                    <VerdictCard r={r} />
+                    <VerdictCard r={r} yours={mine.has(r.txHash)} />
                   </li>
                 ))}
               </ul>
@@ -497,6 +515,7 @@ export default function Home() {
                   {row.bets} calls ·{" "}
                   <span className="text-[var(--win)]">{row.won}W</span>{" "}
                   <span className="text-[var(--loss)]">{row.lost}L</span> · {row.returned.toFixed(2)} returned
+                  {openByWallet.get(row.wallet) ? ` · ${openByWallet.get(row.wallet)} in play` : ""}
                 </span>
               </li>
             ))}
