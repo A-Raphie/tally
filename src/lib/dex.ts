@@ -75,6 +75,8 @@ export type LiveMarket = {
   noTokenId: string | null;
   quoteDecimals: number | null;
   price: number | null;
+  strike: string | null;
+  oracleQuestionId: string | null;
   ask?: number | null;
   noAsk?: number | null;
 };
@@ -93,6 +95,8 @@ export async function listLive(): Promise<LiveMarket[]> {
       secsLeft: Math.round(Number(m.expiry) - now),
       yesTokenId: m.yesTokenId ? String(m.yesTokenId) : null,
       noTokenId: m.noTokenId ? String(m.noTokenId) : null,
+      strike: (m as { strike?: string | null }).strike ?? null,
+      oracleQuestionId: (m as { oracleQuestionId?: string | null }).oracleQuestionId ?? null,
       quoteDecimals: m.quoteDecimals != null ? Number(m.quoteDecimals) : null,
       price:
         m.lastPrice != null && m.quoteDecimals != null
