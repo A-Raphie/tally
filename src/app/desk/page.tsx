@@ -21,7 +21,7 @@ const ORACLE_EXPLORER = "https://shannon-explorer.somnia.network/";
 
 function strikeFor(asset: string, strike: string | null): string | null {
   if (!strike || strike === "0") {
-    return `${asset} opening price of this window (used as the line; oracle fixes it at open)`;
+    return `${asset} opening price of this window, fixed by the oracle at open`;
   }
   const dec = asset.toUpperCase() === "ETH" ? 2 : asset.toUpperCase() === "BTC" ? 2 : 6;
   const n = Number(strike) / 10 ** dec;
