@@ -12,10 +12,18 @@ type Market = {
   price: number | null;
   ask: number | null;
   noAsk: number | null | undefined;
+  line: { mode: "reference" | "fixed"; value: number | null; asset: string } | null;
   strike: string | null;
   oracleQuestionId: string | null;
   poolAddress: string;
 };
+
+function lineText(m: Market): string | null {
+  if (!m.line) return null;
+  if (m.line.value === null) return null;
+  const v = "$" + m.line.value.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  return m.line.mode === "fixed" ? `line: ${m.line.asset} ≥ ${v}` : `line: ${m.line.asset} open = ${v}`;
+}
 
 const ORACLE_EXPLORER = "https://shannon-explorer.somnia.network/";
 
@@ -406,7 +414,7 @@ export default function Home() {
                         <PriceTag price={m.price} />
                         <span className="text-[var(--text-3)]"> · </span>
                         <span>
-                          {assetOf(m.question)} · closes {clock(m.expiry * 1000)}
+                          {lineText(m) ?? assetOf(m.question)} · closes {clock(m.expiry * 1000)}
                         </span>
                         {m.strike !== null && strikeFor(assetOf(m.question), m.strike) && (
                           <span className="text-[var(--text-2)]">

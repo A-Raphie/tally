@@ -24,6 +24,9 @@ const j = async (path, opts) => {
   check("markets.array", Array.isArray(ms));
   check("markets.fields", ms?.every((m) => m.marketId && m.question && typeof m.expiry === "number"));
   check("markets.price-sane", ms?.every((m) => m.price === null || (m.price > 0 && m.price < 1)));
+  const withLine = ms?.filter((m) => m.line?.mode === "reference" && m.line.value !== null) ?? [];
+  check("markets.line-sane", withLine.every((m) => m.line.value > 100 && m.line.value < 200000),
+    withLine.length + " reference lines, e.g. " + withLine[0]?.line?.value);
 }
 
 // 2. receipts: 200, seed or live cards present with valid statuses

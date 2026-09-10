@@ -170,7 +170,16 @@ export default async function Landing() {
                   ) : (
                     <span className="text-[var(--text-3)]">no book</span>
                   )}
-                  <span className="text-[var(--text-3)]"> · closes {new Date(m.expiry * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}</span>
+                  <span className="text-[var(--text-3)]"> · </span>
+                  {m.line?.value != null && (
+                    <span>
+                      {m.line.mode === "fixed"
+                        ? `line ${m.line.asset} ≥ $${m.line.value.toLocaleString("en-US", { maximumFractionDigits: 2 })}`
+                        : `line ${m.line.asset} open = $${m.line.value.toLocaleString("en-US", { maximumFractionDigits: 2 })}`}
+                      <span className="text-[var(--text-3)]"> · </span>
+                    </span>
+                  )}
+                  <span className="text-[var(--text-3)]">closes {new Date(m.expiry * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}</span>
                 </p>
               </div>
             ))
