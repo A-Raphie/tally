@@ -27,6 +27,16 @@ type BoardRow = {
 type Conn = "up" | "down";
 
 
+function PendingLine({ busy }: { busy: "stake" | "settle" }) {
+  return (
+    <p className="font-data mt-4 text-xs text-[var(--prophecy)]" role="status" aria-live="polite">
+      {busy === "settle"
+        ? "Reading each open card against the market's onchain resolution…"
+        : "Crossing the book on Somnia and printing the card… can take a few seconds."}
+    </p>
+  );
+}
+
 function fmtSecs(s: number): string {
   const t = Math.max(0, Math.floor(s));
   if (t <= 0) return "closing";
@@ -215,7 +225,7 @@ export default function Home() {
             <span className="text-[var(--text-3)]">Testnet</span>
           </div>
           <p className="mt-5 max-w-[68ch] text-sm leading-relaxed text-[var(--text-2)] text-pretty">
-            The desk stakes 1 tUSDC, YES or NO side, on live prediction markets. Every fill prints a verdict
+            The desk stakes 1 tUSDC on live prediction markets, YES or NO side. Every fill prints a verdict
             card carrying its real transaction; when the market finalizes, the chain, not the desk,
             flips it to WON or LOST. Every number shows its source.
           </p>
@@ -229,11 +239,7 @@ export default function Home() {
         </p>
 
         {(betting || settling) && (
-          <p className="font-data mt-4 text-xs text-[var(--prophecy)]" role="status" aria-live="polite">
-            {settling
-              ? "Reading each open card against the market's onchain resolution…"
-              : "Crossing the book on Somnia and printing the card… can take a few seconds."}
-          </p>
+          <PendingLine busy={settling ? "settle" : "stake"} />
         )}
 
         {/* alerts */}
@@ -269,9 +275,9 @@ export default function Home() {
           <div className="card p-5">
             <div className="flex items-baseline justify-between">
               <h2 className="text-sm font-semibold text-[var(--text)]">
-                Latest verdict card
+                Your result lands here
               </h2>
-              <span className="text-[10px] text-[var(--text-3)]">the product is the card</span>
+              <span className="text-[10px] text-[var(--text-3)]">your click lands here</span>
             </div>
             {latest ? (
               <div data-latest-card>
