@@ -110,26 +110,6 @@ function candidates(raw: number, asset: string): number[] {
   return SCALES.map((s) => raw / 10 ** s).filter((v) => v >= lo && v <= hi);
 }
 
-export function lineFor(
-  m: { strike?: string | null; asset?: string; marketId: string },
-  openings: Record<string, string | null>
-): Line | null {
-  const asset = (m.asset || "the asset").toUpperCase();
-  const strikeRaw = m.strike;
-  if (strikeRaw != null && strikeRaw !== "0" && strikeRaw !== "") {
-    const raw = Number(strikeRaw);
-    if (!Number.isFinite(raw)) return null;
-    const v = scaleRaw(raw, asset);
-    return v === null ? null : { mode: "fixed", value: v, asset };
-  }
-  const raw = openings[m.marketId.toLowerCase()] ?? openings[String(m.marketId)];
-  if (raw == null) return { mode: "reference", value: null, asset };
-  const n = Number(raw);
-  if (!Number.isFinite(n) || n === 0) return { mode: "reference", value: null, asset };
-  const v = scaleRaw(n, asset);
-  return v === null ? { mode: "reference", value: null, asset } : { mode: "reference", value: v, asset };
-}
-
 export async function listLive(): Promise<LiveMarket[]> {
   const ex = exchange();
   const rows = await ex.client.listLiveBinaryMarkets({ limit: 30 });
