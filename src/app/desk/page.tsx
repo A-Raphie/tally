@@ -138,8 +138,18 @@ export default function Home() {
 
   useEffect(() => {
     refresh();
-    const t = setInterval(refresh, 15000);
-    return () => clearInterval(t);
+    // Poll only while the tab is visible; hidden tabs burn edge requests (60s cap, was 15s × 3 fetches)
+    const t = setInterval(() => {
+      if (document.visibilityState === "visible") refresh();
+    }, 60000);
+    const wake = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    document.addEventListener("visibilitychange", wake);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", wake);
+    };
   }, [refresh]);
 
   useEffect(() => {
@@ -477,7 +487,7 @@ export default function Home() {
           ) : (
             <>
               <ul className="grid gap-5 sm:grid-cols-2">
-                {receipts.slice(1, 13).map((r, i) => (
+                {receipts.slice(1).map((r, i) => (
                   <li key={r.id} className="enter" style={{ animationDelay: `${Math.min(i * 40, 280)}ms` }}>
                     <VerdictCard r={r} yours={mine.has(r.txHash)} />
                   </li>
@@ -485,7 +495,7 @@ export default function Home() {
               </ul>
               {receipts.length > 13 && (
                 <p className="mt-3 text-xs text-[var(--text-2)]">
-                  {receipts.length - 13} earlier cards in the desk log.
+                  
                 </p>
               )}
             </>
