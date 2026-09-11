@@ -81,12 +81,13 @@ async function marketMeta(ids: string[]): Promise<Map<string, MarketMeta>> {
 export async function deriveCards(): Promise<CardReceipt[]> {
   const wallet = (await agentWallet()).toLowerCase();
   const ex = exchange();
-  // the indexer caps one read at 50 rows: page the tape
-    const [page1, page2] = await Promise.all([
-      ex.client.getUserFills(wallet, { limit: 50 }),
-      ex.client.getUserFills(wallet, { limit: 50, offset: 50 }),
-    ]);
-    const fills = [...page1, ...page2];
+  // the indexer caps one read at 50 rows: page the tape until a short page
+    const pages = await Promise.all(
+      [0, 50, 100, 150].map((offset) =>
+        ex.client.getUserFills(wallet, { limit: 50, offset })
+      )
+    );
+    const fills = pages.flat();
   const ours = fills
     .filter((f) => (f.taker ?? "").toLowerCase() === wallet)
     .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
