@@ -85,7 +85,7 @@ export async function deriveCards(): Promise<CardReceipt[]> {
   const ours = fills
     .filter((f) => (f.taker ?? "").toLowerCase() === wallet)
     .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
-    .slice(0, 60);
+    .slice(0, 200);
 
   const meta = await marketMeta(ours.map((f) => String(f.market)));
   const cards: CardReceipt[] = [];
